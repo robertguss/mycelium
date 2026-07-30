@@ -13,11 +13,11 @@
 
 ## 1. Artifact Metadata
 
-| Field | Value |
-| ----- | ----- |
+| Field      | Value          |
+| ---------- | -------------- |
 | Program ID | {{PROGRAM_ID}} |
-| Owner | |
-| Repository | |
+| Owner      |                |
+| Repository |                |
 
 ## 2. Product or Project Vision
 
@@ -48,16 +48,16 @@ discovery, list stages here and add corresponding `[[stages]]` entries in
 `research-program.toml`. Create prompt/report paths just-in-time from
 `program/templates/`.
 
-| Stage ID | Name | Kind | Depends on | Output | Parallel group |
-| -------- | ---- | ---- | ---------- | ------ | -------------- |
-| discovery | Project Discovery | discovery | — | this file | — |
-| charter | Research Charter | research-charter | discovery | docs/01-research-charter.md | — |
-| synthesis | Definitive Specification Synthesis | chief-architect-synthesis | _(all accepted research)_ | docs/specifications/01-definitive-specification.md | — |
-| spec-review | Specification Adversarial Review | adversarial-review | synthesis | docs/reviews/01-specification-adversarial-review.md | — |
-| spec-revision | Revised Definitive Specification | artifact-revision | spec-review | docs/specifications/02-definitive-specification-revised.md | — |
-| implementation-plan | Implementation Plan | implementation-plan | spec-revision | docs/plans/01-implementation-plan.md | — |
-| plan-review | Implementation Plan Adversarial Review | adversarial-review | implementation-plan | docs/reviews/02-implementation-plan-adversarial-review.md | — |
-| plan-revision | Final Revised Implementation Plan | artifact-revision | plan-review | docs/plans/02-implementation-plan-revised.md | — |
+| Stage ID            | Name                                   | Kind                      | Depends on                | Output                                                     | Parallel group |
+| ------------------- | -------------------------------------- | ------------------------- | ------------------------- | ---------------------------------------------------------- | -------------- |
+| discovery           | Project Discovery                      | discovery                 | —                         | this file                                                  | —              |
+| charter             | Research Charter                       | research-charter          | discovery                 | docs/01-research-charter.md                                | —              |
+| synthesis           | Definitive Specification Synthesis     | chief-architect-synthesis | _(all accepted research)_ | docs/specifications/01-definitive-specification.md         | —              |
+| spec-review         | Specification Adversarial Review       | adversarial-review        | synthesis                 | docs/reviews/01-specification-adversarial-review.md        | —              |
+| spec-revision       | Revised Definitive Specification       | artifact-revision         | spec-review               | docs/specifications/02-definitive-specification-revised.md | —              |
+| implementation-plan | Implementation Plan                    | implementation-plan       | spec-revision             | docs/plans/01-implementation-plan.md                       | —              |
+| plan-review         | Implementation Plan Adversarial Review | adversarial-review        | implementation-plan       | docs/reviews/02-implementation-plan-adversarial-review.md  | —              |
+| plan-revision       | Final Revised Implementation Plan      | artifact-revision         | plan-review               | docs/plans/02-implementation-plan-revised.md               | —              |
 
 ## 11. Stage Descriptions and Dependencies
 
@@ -78,18 +78,18 @@ See repository layout in root `README.md` and `program/operator/bootstrap.md`.
 
 ## 15. Identifier Allocations
 
-| Namespace | Range | Notes |
-| --------- | ----- | ----- |
-| DEC | DEC-001..DEC-999 | Decision records |
-| REC | _(allocate per research track)_ | |
-| REQ | REQ-001..REQ-299 | Specification |
-| FND (spec) | FND-001..FND-199 | Spec review |
-| FND (plan) | FND-200..FND-399 | Plan review |
-| RSK | RSK-001..RSK-999 | |
-| OQ | OQ-001..OQ-999 | |
-| SPK | SPK-001..SPK-999 | |
-| PHASE | PHASE-01..PHASE-99 | |
-| MS | MS-001..MS-999 | |
+| Namespace  | Range                           | Notes            |
+| ---------- | ------------------------------- | ---------------- |
+| DEC        | DEC-001..DEC-999                | Decision records |
+| REC        | _(allocate per research track)_ |                  |
+| REQ        | REQ-001..REQ-299                | Specification    |
+| FND (spec) | FND-001..FND-199                | Spec review      |
+| FND (plan) | FND-200..FND-399                | Plan review      |
+| RSK        | RSK-001..RSK-999                |                  |
+| OQ         | OQ-001..OQ-999                  |                  |
+| SPK        | SPK-001..SPK-999                |                  |
+| PHASE      | PHASE-01..PHASE-99              |                  |
+| MS         | MS-001..MS-999                  |                  |
 
 ## 16. Authority and Precedence
 

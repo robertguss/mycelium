@@ -29,13 +29,13 @@ just check    # tree and acceptance sanity
 
 ## What to read first
 
-| If you are… | Read |
-| ----------- | ---- |
-| Starting a new program | `program/operator/getting-started.md` |
-| Resuming work | `program/operator/resume-protocol.md` + `just status` |
-| An agent in this repo | `AGENTS.md` + `.agents/skills/` |
-| Writing an artifact type | `program/contracts/` + `program/templates/` |
-| Deep rules | `program/reference/` |
+| If you are…              | Read                                                  |
+| ------------------------ | ----------------------------------------------------- |
+| Starting a new program   | `program/operator/getting-started.md`                 |
+| Resuming work            | `program/operator/resume-protocol.md` + `just status` |
+| An agent in this repo    | `AGENTS.md` + `.agents/skills/`                       |
+| Writing an artifact type | `program/contracts/` + `program/templates/`           |
+| Deep rules               | `program/reference/`                                  |
 
 ## Repository layout
 
@@ -69,10 +69,10 @@ templates under `program/templates/`.
 
 Until revised artifacts are accepted:
 
-| Role | Path | Status |
-| ---- | ---- | ------ |
+| Role                     | Path                                                         | Status      |
+| ------------------------ | ------------------------------------------------------------ | ----------- |
 | Implementation authority | `docs/specifications/02-definitive-specification-revised.md` | Placeholder |
-| Delivery authority | `docs/plans/02-implementation-plan-revised.md` | Placeholder |
+| Delivery authority       | `docs/plans/02-implementation-plan-revised.md`               | Placeholder |
 
 Update this section when authorities are accepted.
 
@@ -89,10 +89,10 @@ Full methodology: [`program/README.md`](program/README.md).
 
 ## Skills
 
-| Skill | Path |
-| ----- | ---- |
-| research-program | `.agents/skills/research-program/` |
-| research-stage | `.agents/skills/research-stage/` |
+| Skill             | Path                                |
+| ----------------- | ----------------------------------- |
+| research-program  | `.agents/skills/research-program/`  |
+| research-stage    | `.agents/skills/research-stage/`    |
 | research-validate | `.agents/skills/research-validate/` |
 
 Compatible with agents that load project skills from `.agents/skills`.

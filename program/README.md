@@ -6,12 +6,12 @@ agents and humans can attach only what each stage needs—without losing rigor.
 
 ## Layers
 
-| Layer | Path | Use when |
-| ----- | ---- | -------- |
-| **Operator** | [`operator/`](operator/) | Starting, resuming, bootstrapping, approval gates, completion |
-| **Contracts** | [`contracts/`](contracts/) | Writing or validating a specific artifact type |
-| **Templates** | [`templates/`](templates/) | Copy-paste structures for prompts, records, ledgers, tasks |
-| **Reference** | [`reference/`](reference/) | Deep rules: tiers, stage library, anti-patterns, amendments |
+| Layer         | Path                       | Use when                                                      |
+| ------------- | -------------------------- | ------------------------------------------------------------- |
+| **Operator**  | [`operator/`](operator/)   | Starting, resuming, bootstrapping, approval gates, completion |
+| **Contracts** | [`contracts/`](contracts/) | Writing or validating a specific artifact type                |
+| **Templates** | [`templates/`](templates/) | Copy-paste structures for prompts, records, ledgers, tasks    |
+| **Reference** | [`reference/`](reference/) | Deep rules: tiers, stage library, anti-patterns, amendments   |
 
 ## Authority
 

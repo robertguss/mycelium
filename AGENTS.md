@@ -49,11 +49,11 @@ Charter, accepted specs/plans) outside a commissioned revision stage.
 
 Portable skills live under `.agents/skills/`:
 
-| Skill | Use for |
-| ----- | ------- |
-| `research-program` | Discovery, resume, next stage, program orchestration |
-| `research-stage` | Just-in-time stage package (prompt, install, attach, launch, validate) |
-| `research-validate` | Independent validation gate |
+| Skill               | Use for                                                                |
+| ------------------- | ---------------------------------------------------------------------- |
+| `research-program`  | Discovery, resume, next stage, program orchestration                   |
+| `research-stage`    | Just-in-time stage package (prompt, install, attach, launch, validate) |
+| `research-validate` | Independent validation gate                                            |
 
 Methodology library: `program/`. Operator start: `program/operator/getting-started.md`.
 

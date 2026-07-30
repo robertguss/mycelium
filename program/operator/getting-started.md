@@ -51,11 +51,11 @@ Rigor tier defaults to `standard` as **proposed** until Blueprint approval.
 
 ## Tooling
 
-| Command | Purpose |
-| ------- | ------- |
-| `just init name="…"` | Bootstrap project name into placeholders |
-| `just status` | Manifest stage overview / eligible stages |
-| `just check` | Tree + placeholder-vs-accepted sanity |
+| Command              | Purpose                                   |
+| -------------------- | ----------------------------------------- |
+| `just init name="…"` | Bootstrap project name into placeholders  |
+| `just status`        | Manifest stage overview / eligible stages |
+| `just check`         | Tree + placeholder-vs-accepted sanity     |
 
 ## Skills
 

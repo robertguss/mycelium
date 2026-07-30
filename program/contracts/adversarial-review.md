@@ -22,12 +22,12 @@ or plan should not be assumed to have found its most dangerous flaws.
 
 ## Severity
 
-| Level | Meaning |
-| ----- | ------- |
-| Critical | Blocks all implementation or risks catastrophic harm |
-| High | Blocks the affected phase or creates major invalid behavior |
-| Medium | Must be fixed before the affected phase completes |
-| Low | Should be corrected in revision; does not block early work |
+| Level    | Meaning                                                     |
+| -------- | ----------------------------------------------------------- |
+| Critical | Blocks all implementation or risks catastrophic harm        |
+| High     | Blocks the affected phase or creates major invalid behavior |
+| Medium   | Must be fixed before the affected phase completes           |
+| Low      | Should be corrected in revision; does not block early work  |
 
 Finding template: [`../templates/finding.md`](../templates/finding.md).
 

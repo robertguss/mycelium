@@ -4,17 +4,17 @@ Every substantive item receives a stable identifier.
 
 ## Required namespaces
 
-| ID | Meaning |
-| -- | ------- |
-| `DEC-###` | Accepted decision records |
-| `REC-###` | Research recommendations |
-| `REQ-###` | Normative specification requirements |
-| `FND-###` | Adversarial review findings |
-| `RSK-###` | Risks |
-| `OQ-###` | Open questions |
-| `SPK-###` | Evidence spikes |
-| `PHASE-##` | Implementation phases |
-| `MS-###` | Implementation milestones |
+| ID         | Meaning                              |
+| ---------- | ------------------------------------ |
+| `DEC-###`  | Accepted decision records            |
+| `REC-###`  | Research recommendations             |
+| `REQ-###`  | Normative specification requirements |
+| `FND-###`  | Adversarial review findings          |
+| `RSK-###`  | Risks                                |
+| `OQ-###`   | Open questions                       |
+| `SPK-###`  | Evidence spikes                      |
+| `PHASE-##` | Implementation phases                |
+| `MS-###`   | Implementation milestones            |
 
 Optional: `EVD-###` (Evidence Ledger entries), `ASM-###` (assumptions).
 
