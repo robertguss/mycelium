@@ -2,7 +2,7 @@
 
 - **Repo:** [robertguss/artifact-driven-research-program](https://github.com/robertguss/artifact-driven-research-program)
 - **Status:** Working notes. **Not** an accepted Blueprint or Charter.
-- **Updated:** 2026-08-14
+- **Updated:** 2026-08-14 (rev 2)
 - **Owner:** Robert Guss (with Thinking Partner, Research, Engineering)
 
 This file is the system of record for *conversation so far*. Chat is not authority. Placeholders in `docs/00-program-blueprint.md` stay placeholders until discovery framing is approved.
@@ -48,9 +48,9 @@ Arvo was started on that bet. Today it spends a *thin* OTP slice: singleton Sess
 | **B** | Which BEAM primitives and runtime gifts can we push that are *native*? |
 | **C** | How do we **translate** A into a BEAM-native move (not the same scaffold on a different VM)? |
 
-**Leaning locked — B first:** draft a BEAM primitive atlas, put papers on **Watch** in parallel, and only then **translate** (C). C remains the contribution (not a reading club, not tourist OTP) — the *sequence* is atlas → Watch → translate, not “C as day-one center.”
+Sequence: **B first** (short primitive atlas), A on the Watch shelf in parallel for edification, **C only when the atlas can say whether BEAM changes the idea**. C remains the *contribution*; B is the *curriculum start*. Jido is a cousin, not the map.
 
-**Edification in scope:** RLM, GEPA, and similar work are fair game to *learn from*. Porting them into Elixir is **not** automatic and is not the default. If a paper is the same idea on another VM, it does **not** get an Elixir rewrite.
+If a paper is the same idea on another VM, it does **not** get an Elixir rewrite.
 
 ---
 
@@ -65,19 +65,6 @@ Looser *intake* so Python-heavy papers survive. Not a looser *graduation* bar.
 | **Graduate** | Ready for the experiment project: claim, what we’d measure, what “land in Arvo” means |
 
 Most ideas should stay on Watch. That is success.
-
----
-
-## BEAM primitive atlas (draft)
-
-Working map of runtime gifts we might push. **Not accepted** — refine before Blueprint. Atlas work is **B**. Papers land on Watch while this drafts; **C** fires when a Watch item maps onto a cluster without becoming LangChain-on-BEAM.
-
-| Cluster | Rough meaning (draft) | Seeds already in the notes |
-|---------|----------------------|----------------------------|
-| **Isolation** | Separate failure and trust domains (brain vs hands) without pretending Docker is optional | Hidden hands node; no secrets on hands; Docker for bash; Livebook-style nodes |
-| **Liveness** | Keep the brain (Session, mailbox, JSONL) alive across client and plugin churn | Focus as disposable client; quit ≠ kill brain; plugin hot-load (`:code.load_binary` + ETS) |
-| **Attention-as-topology** | Who talks to whom *is* the architecture — mailboxes, links, monitors; not HTTP-as-identity | Client/server as actor byproduct; Session cast/send only; José’s OpenCode-shaped point |
-| **Concurrency policy** | Explicit choices about what runs where, backpressure, and recursive LLM calls | Turn as Task; tools aimed at hands; broker so the sandbox never sees API keys |
 
 ---
 
@@ -123,9 +110,10 @@ Interview in progress (one question at a time). Do not accept Blueprint until fr
 | 1 | Problem | **Locked:** personal lab; José hypothesis; learn + catalog; not compete |
 | 2 | Done-enough for *this* phase | **Locked:** open-ended research; output is a collection of hypotheses; spikes are the *next* project |
 | 3 | Graduation bar | **Leaning loose intake**; shelves proposed (Watch / Translate / Graduate) |
-| 4 | Sequence (B / A / C) | **Leaning locked:** BEAM atlas first; papers Watch in parallel; translate after atlas |
+| 4 | Work sequence | **Leaning locked:** BEAM primitive atlas first; papers on Watch in parallel; translate only after the atlas can say if BEAM changes the idea |
+| 5 | Edification | **Locked:** RLM, GEPA, and other cutting-edge techniques are in-scope to *learn*; porting them to Elixir is not automatic |
 
-Still to cover (later): rigor tier, tracks, paper-ingest habit, where phase-2 repo lives, success criteria for the catalog.
+Still to cover (later): rigor tier, formal tracks, where phase-2 repo lives, catalog success criteria.
 
 ---
 
@@ -139,10 +127,50 @@ Still to cover (later): rigor tier, tracks, paper-ingest habit, where phase-2 re
 
 ---
 
-## Open for Robert
+## Next (research, not spikes)
 
-1. Draft / react to the BEAM primitive atlas (four clusters).
+1. Draft a one-page **BEAM primitive atlas** (four clusters below) with one-line hypotheses.
 2. `just init` this repo (name only) so it stops being `{{PROJECT_NAME}}`.
-3. Drop arXiv links when you want them on the Watch shelf.
+3. Keep RLM / GEPA / other papers on the **Watch** shelf; translate after the atlas exists.
 
-When you’re happy with this framing (atlas sequence + shelves), we fill `docs/00-program-blueprint.md` and you accept it. Not before.
+When the atlas draft looks right, we can fill `docs/00-program-blueprint.md` for you to accept.
+
+---
+
+## BEAM primitive atlas (draft — research only)
+
+Only primitives that can change an agent loop. Not a tour of OTP.
+
+### Isolation
+Process, Port, hidden node, Docker. Links vs monitors. `spawn_monitor` + `max_heap_size` + timeout + `:brutal_kill`.
+
+- **Hypothesis:** the fence is a *location* (process / VM / container), not an allowlist.
+- **José mapping:** brains vs hands.
+- **Shelf:** Translate (already have a BEAM-shaped claim).
+
+### Liveness
+Code server (`:code.load_binary`, two-version modules), iex attach, observer / telemetry.
+
+- **Hypothesis:** Session can outlive the tile *and* the plugin code.
+- **José mapping:** Pi-like plugins + “runtime is the framework.”
+- **Shelf:** Translate.
+
+### Attention-as-topology
+ETS / cold evidence, `:pg` / Registry, hibernate, mailbox priority.
+
+- **Hypothesis:** hot / warm / cold is a process layout, not only a prompt policy.
+- **Shelf:** Watch → Translate (needs a sharper claim).
+
+### Concurrency policy
+Sequential tools is a product choice because processes are cheap. Parallel tool children. Dirty schedulers / NIFs (FFF already exists).
+
+- **Hypothesis:** we can *measure* whether parallel tools help because of BEAM, not because we copied a thread pool.
+- **Shelf:** Watch.
+
+### Study, don’t build as architecture
+Horde, Oban, relups, PubSub-for-its-own-sake. Allowed on Watch.
+
+### Watch-shelf papers (edification; no translation yet)
+- RLM — [arXiv:2512.24601](https://arxiv.org/abs/2512.24601)
+- GEPA — DSPy genetic-Pareto prompt optimization (paper/notes TBD)
+- Others as Robert drops links
