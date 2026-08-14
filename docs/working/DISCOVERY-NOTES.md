@@ -40,7 +40,7 @@ Arvo was started on that bet. Today it spends a *thin* OTP slice: singleton Sess
 
 ---
 
-## Three research fronts (proposed — Q4 still open)
+## Three research fronts (sequence leaning locked)
 
 | Front | Question |
 |-------|----------|
@@ -48,9 +48,9 @@ Arvo was started on that bet. Today it spends a *thin* OTP slice: singleton Sess
 | **B** | Which BEAM primitives and runtime gifts can we push that are *native*? |
 | **C** | How do we **translate** A into a BEAM-native move (not the same scaffold on a different VM)? |
 
-Thinking Partner recommendation (not yet accepted): **C is the center**. A and B are inputs. A without C is a reading club. B without A is tourist OTP. C is the underexplored work (Jido is a cousin, not the map).
+**Leaning locked — B first:** draft a BEAM primitive atlas, put papers on **Watch** in parallel, and only then **translate** (C). C remains the contribution (not a reading club, not tourist OTP) — the *sequence* is atlas → Watch → translate, not “C as day-one center.”
 
-If a paper is the same idea on another VM, it does **not** get an Elixir rewrite.
+**Edification in scope:** RLM, GEPA, and similar work are fair game to *learn from*. Porting them into Elixir is **not** automatic and is not the default. If a paper is the same idea on another VM, it does **not** get an Elixir rewrite.
 
 ---
 
@@ -65,6 +65,19 @@ Looser *intake* so Python-heavy papers survive. Not a looser *graduation* bar.
 | **Graduate** | Ready for the experiment project: claim, what we’d measure, what “land in Arvo” means |
 
 Most ideas should stay on Watch. That is success.
+
+---
+
+## BEAM primitive atlas (draft)
+
+Working map of runtime gifts we might push. **Not accepted** — refine before Blueprint. Atlas work is **B**. Papers land on Watch while this drafts; **C** fires when a Watch item maps onto a cluster without becoming LangChain-on-BEAM.
+
+| Cluster | Rough meaning (draft) | Seeds already in the notes |
+|---------|----------------------|----------------------------|
+| **Isolation** | Separate failure and trust domains (brain vs hands) without pretending Docker is optional | Hidden hands node; no secrets on hands; Docker for bash; Livebook-style nodes |
+| **Liveness** | Keep the brain (Session, mailbox, JSONL) alive across client and plugin churn | Focus as disposable client; quit ≠ kill brain; plugin hot-load (`:code.load_binary` + ETS) |
+| **Attention-as-topology** | Who talks to whom *is* the architecture — mailboxes, links, monitors; not HTTP-as-identity | Client/server as actor byproduct; Session cast/send only; José’s OpenCode-shaped point |
+| **Concurrency policy** | Explicit choices about what runs where, backpressure, and recursive LLM calls | Turn as Task; tools aimed at hands; broker so the sandbox never sees API keys |
 
 ---
 
@@ -110,7 +123,7 @@ Interview in progress (one question at a time). Do not accept Blueprint until fr
 | 1 | Problem | **Locked:** personal lab; José hypothesis; learn + catalog; not compete |
 | 2 | Done-enough for *this* phase | **Locked:** open-ended research; output is a collection of hypotheses; spikes are the *next* project |
 | 3 | Graduation bar | **Leaning loose intake**; shelves proposed (Watch / Translate / Graduate) |
-| 4 | C-as-center vs three parallel streams | **Open** — last question asked, not answered |
+| 4 | Sequence (B / A / C) | **Leaning locked:** BEAM atlas first; papers Watch in parallel; translate after atlas |
 
 Still to cover (later): rigor tier, tracks, paper-ingest habit, where phase-2 repo lives, success criteria for the catalog.
 
@@ -128,8 +141,8 @@ Still to cover (later): rigor tier, tracks, paper-ingest habit, where phase-2 re
 
 ## Open for Robert
 
-1. Answer Q4: is **C the center**, or three parallel workstreams?
+1. Draft / react to the BEAM primitive atlas (four clusters).
 2. `just init` this repo (name only) so it stops being `{{PROJECT_NAME}}`.
 3. Drop arXiv links when you want them on the Watch shelf.
 
-When Q4 is answered and you’re happy with this framing, we fill `docs/00-program-blueprint.md` and you accept it. Not before.
+When you’re happy with this framing (atlas sequence + shelves), we fill `docs/00-program-blueprint.md` and you accept it. Not before.
