@@ -26,6 +26,8 @@ func TestRunDueMatrix(t *testing.T) {
 		{"after", "simmering", "2026-08-08", time.Date(2026, 8, 9, 0, 0, 0, 0, time.UTC), "yes"},
 		{"event", "simmering", "event:after-iphone-launch", time.Date(2026, 8, 9, 0, 0, 0, 0, time.UTC), "event"},
 		{"empty", "exploring", "", time.Date(2026, 8, 9, 0, 0, 0, 0, time.UTC), "no"},
+		{"leftover-date-exploring", "exploring", "2026-08-08", time.Date(2026, 8, 9, 0, 0, 0, 0, time.UTC), "no"},
+		{"leftover-event-clarified", "clarified", "event:after-iphone-launch", time.Date(2026, 8, 9, 0, 0, 0, 0, time.UTC), "no"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

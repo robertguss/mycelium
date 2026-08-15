@@ -123,7 +123,7 @@ func runSingle(opts Options, deps Deps) int {
 	fmt.Fprintf(deps.Stdout, "state: %s\n", m.State)
 	fmt.Fprintf(deps.Stdout, "tier: %s\n", m.Tier)
 	fmt.Fprintf(deps.Stdout, "revisit: %s\n", m.Revisit)
-	fmt.Fprintf(deps.Stdout, "due: %s\n", dueToken(m.Revisit, deps.Clock.Now()))
+	fmt.Fprintf(deps.Stdout, "due: %s\n", dueToken(m.State, m.Revisit, deps.Clock.Now()))
 	fmt.Fprintf(deps.Stdout, "github: %s\n", github)
 	return 0
 }
@@ -294,8 +294,8 @@ func absAgainst(path, cwd string) string {
 	return filepath.Join(cwd, path)
 }
 
-func dueToken(revisitRaw string, now time.Time) string {
-	if revisitRaw == "" {
+func dueToken(state, revisitRaw string, now time.Time) string {
+	if state != "simmering" || revisitRaw == "" {
 		return "no"
 	}
 	kind, date, _, err := revisit.Parse(revisitRaw)
