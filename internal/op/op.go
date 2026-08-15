@@ -226,7 +226,7 @@ func (s *Session) commitN(max int) (int, error) {
 		fromOK := fromErr == nil
 		toOK := toErr == nil
 
-		// Before Save: to exists and from does not → mark Done.
+		// Already committed (to exists, staged from gone) → mark Done.
 		if toOK && !fromOK {
 			s.journal.Renames[i].Done = true
 			applied++
@@ -235,16 +235,12 @@ func (s *Session) commitN(max int) (int, error) {
 			}
 			continue
 		}
-		// Both exist → refuse.
-		if toOK && fromOK {
-			_ = journal.Save(s.root, s.journal)
-			return applied, fmt.Errorf("op: rename conflict: both %s and %s exist", from, to)
-		}
-		// From exists → Rename, then mark Done and Save.
+		// From missing and to missing → error.
 		if !fromOK {
 			_ = journal.Save(s.root, s.journal)
 			return applied, fmt.Errorf("op: missing staged source %s", from)
 		}
+		// From exists (to may also exist for log/manifest updates) → Rename replaces.
 		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 			_ = journal.Save(s.root, s.journal)
 			return applied, err
