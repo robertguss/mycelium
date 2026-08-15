@@ -1,27 +1,30 @@
 +++
 id = "{{ID}}"
 title = "{{TITLE}}"
-priority = "Must"
+agreement = "open"
 date = "{{DATE}}"
-phase = ""
 +++
 
 # {{ID}} — {{TITLE}}
 
 <!-- slug: {{SLUG}} -->
 
-## Requirement
+## Question
 
 <!-- fill -->
 
-## Rationale
+## Context
 
 <!-- fill -->
 
-## Acceptance Evidence
+## Positions
 
 <!-- fill -->
 
-## Exceptions
+## Crux
+
+<!-- fill -->
+
+## Disposition
 
 <!-- fill -->

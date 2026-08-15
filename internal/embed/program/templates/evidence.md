@@ -1,27 +1,31 @@
 +++
 id = "{{ID}}"
 title = "{{TITLE}}"
-priority = "Must"
+status = "Draft"
 date = "{{DATE}}"
-phase = ""
+source = ""
 +++
 
 # {{ID}} — {{TITLE}}
 
 <!-- slug: {{SLUG}} -->
 
-## Requirement
+## Claim
 
 <!-- fill -->
 
-## Rationale
+## Source
 
 <!-- fill -->
 
-## Acceptance Evidence
+## Observation
 
 <!-- fill -->
 
-## Exceptions
+## Limitations
+
+<!-- fill -->
+
+## Revalidation Trigger
 
 <!-- fill -->

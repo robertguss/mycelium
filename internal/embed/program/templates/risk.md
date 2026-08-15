@@ -1,27 +1,31 @@
 +++
 id = "{{ID}}"
 title = "{{TITLE}}"
-priority = "Must"
+severity = "Low"
+likelihood = "Low"
 date = "{{DATE}}"
-phase = ""
 +++
 
 # {{ID}} — {{TITLE}}
 
 <!-- slug: {{SLUG}} -->
 
-## Requirement
+## Description
 
 <!-- fill -->
 
-## Rationale
+## Impact
 
 <!-- fill -->
 
-## Acceptance Evidence
+## Mitigation
 
 <!-- fill -->
 
-## Exceptions
+## Residual Risk
+
+<!-- fill -->
+
+## Revisit Triggers
 
 <!-- fill -->

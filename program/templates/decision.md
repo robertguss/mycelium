@@ -1,39 +1,43 @@
 +++
 id = "{{ID}}"
 title = "{{TITLE}}"
-severity = "Low"
-confidence = "Medium"
+status = "Proposed"
 date = "{{DATE}}"
+owner = ""
 +++
 
 # {{ID}} — {{TITLE}}
 
 <!-- slug: {{SLUG}} -->
 
-## Problem
+## Context
 
 <!-- fill -->
 
-## Evidence
+## Decision
 
 <!-- fill -->
 
-## Failure Scenario
+## Rationale
 
 <!-- fill -->
 
-## Impact
+## Consequences
 
 <!-- fill -->
 
-## Root Cause
+## Alternatives Considered
 
 <!-- fill -->
 
-## Required Correction
+## Risks
 
 <!-- fill -->
 
-## Residual Risk
+## Revisit Triggers
+
+<!-- fill -->
+
+## Approval
 
 <!-- fill -->

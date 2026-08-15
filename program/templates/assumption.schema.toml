@@ -1,0 +1,15 @@
+namespace = "ASM"
+home = "assumptions"
+filename_pattern = "ASM-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "status", "date", "attached_to"]
+required_sections = [
+  "Statement",
+  "Falsifier",
+  "Implications",
+  "Revisit Triggers",
+]
+
+[enums.status]
+values = ["Open", "Held", "Falsified", "Retired"]

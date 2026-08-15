@@ -1,27 +1,27 @@
 +++
 id = "{{ID}}"
 title = "{{TITLE}}"
-priority = "Must"
+status = "Open"
 date = "{{DATE}}"
-phase = ""
+attached_to = ""
 +++
 
 # {{ID}} — {{TITLE}}
 
 <!-- slug: {{SLUG}} -->
 
-## Requirement
+## Statement
 
 <!-- fill -->
 
-## Rationale
+## Falsifier
 
 <!-- fill -->
 
-## Acceptance Evidence
+## Implications
 
 <!-- fill -->
 
-## Exceptions
+## Revisit Triggers
 
 <!-- fill -->

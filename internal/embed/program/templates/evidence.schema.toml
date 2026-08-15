@@ -1,0 +1,16 @@
+namespace = "EVD"
+home = "evidence"
+filename_pattern = "EVD-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "status", "date", "source"]
+required_sections = [
+  "Claim",
+  "Source",
+  "Observation",
+  "Limitations",
+  "Revalidation Trigger",
+]
+
+[enums.status]
+values = ["Draft", "Recorded", "Revalidated", "Superseded"]

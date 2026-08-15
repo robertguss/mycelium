@@ -3,8 +3,11 @@ package embed
 
 import stdembed "embed"
 
+//go:generate go run gen_copy.go
+
 // Program is the embedded methodology tree (contracts, templates, tiers).
-// Slice 1 ships a stub; Slice 2 authors real 2.0 content.
+// Authoritative browsable tree is repo-root program/; this package holds a
+// generate-copied snapshot (*.go filtered out).
 //
 //go:embed all:program
 var Program stdembed.FS

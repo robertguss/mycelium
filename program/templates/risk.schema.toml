@@ -1,0 +1,19 @@
+namespace = "RSK"
+home = "risks"
+filename_pattern = "RSK-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "severity", "likelihood", "date"]
+required_sections = [
+  "Description",
+  "Impact",
+  "Mitigation",
+  "Residual Risk",
+  "Revisit Triggers",
+]
+
+[enums.severity]
+values = ["Critical", "High", "Medium", "Low"]
+
+[enums.likelihood]
+values = ["High", "Medium", "Low"]

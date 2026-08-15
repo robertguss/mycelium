@@ -1,0 +1,19 @@
+namespace = "DEC"
+home = "decisions"
+filename_pattern = "DEC-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "status", "date", "owner"]
+required_sections = [
+  "Context",
+  "Decision",
+  "Rationale",
+  "Consequences",
+  "Alternatives Considered",
+  "Risks",
+  "Revisit Triggers",
+  "Approval",
+]
+
+[enums.status]
+values = ["Proposed", "Accepted", "Superseded", "Rejected"]
