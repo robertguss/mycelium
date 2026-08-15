@@ -57,7 +57,7 @@ func Begin(root string, intent Intent, now time.Time) (*Session, error) {
 			return nil, fmt.Errorf("%w: use mycelium check --abort-journal", ErrJournalMismatch)
 		}
 		intent.OriginalID = existing.OriginalID
-		if err := validateContained(root, existing.StagedDir); err != nil {
+		if err := validateStagedDir(root, existing.StagedDir); err != nil {
 			return nil, err
 		}
 		for _, r := range existing.Renames {
@@ -141,7 +141,7 @@ func (s *Session) Stage(files []Staged) error {
 	if len(s.journal.Renames) > 0 {
 		return nil
 	}
-	if err := validateContained(s.root, s.journal.StagedDir); err != nil {
+	if err := validateStagedDir(s.root, s.journal.StagedDir); err != nil {
 		return err
 	}
 	stageAbs := s.StageDir()
@@ -346,7 +346,7 @@ func Abort(root string) error {
 			_ = os.Remove(from)
 		}
 		if j.StagedDir != "" {
-			if err := validateContained(root, j.StagedDir); err == nil {
+			if err := validateStagedDir(root, j.StagedDir); err == nil {
 				_ = os.RemoveAll(filepath.Join(root, filepath.FromSlash(j.StagedDir)))
 			}
 		}
@@ -382,7 +382,7 @@ func Detect(root string) (hasJournal bool, staleLock bool, err error) {
 	return hasJournal, info.State == lock.Stale, nil
 }
 
-// validateContained rejects absolute paths and .. escapes outside root.
+// validateContained rejects absolute paths, ".", and .. escapes outside root.
 func validateContained(root, rel string) error {
 	if rel == "" {
 		return fmt.Errorf("%w: empty", ErrPathEscape)
@@ -391,7 +391,7 @@ func validateContained(root, rel string) error {
 		return fmt.Errorf("%w: %q", ErrPathEscape, rel)
 	}
 	clean := filepath.Clean(filepath.FromSlash(rel))
-	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("%w: %q", ErrPathEscape, rel)
 	}
 	absRoot, err := filepath.Abs(root)
@@ -400,7 +400,7 @@ func validateContained(root, rel string) error {
 	}
 	abs := filepath.Join(absRoot, clean)
 	sep := string(filepath.Separator)
-	if abs != absRoot && !strings.HasPrefix(abs, absRoot+sep) {
+	if abs == absRoot || !strings.HasPrefix(abs, absRoot+sep) {
 		return fmt.Errorf("%w: %q", ErrPathEscape, rel)
 	}
 	return nil

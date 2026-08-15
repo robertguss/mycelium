@@ -466,3 +466,65 @@ func TestDetectKeepsJournalStagePrunesOrphans(t *testing.T) {
 		t.Fatal("Detect must prune other stage dirs")
 	}
 }
+
+func TestStagedDirDotRefused(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "KEEP.md")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "scaffold",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".",
+		Argv:          []string{"new", "idea", "X", "--offline"},
+	}
+	if err := journal.Save(root, j); err != nil {
+		t.Fatal(err)
+	}
+	_, err := op.Begin(root, op.Intent{
+		Op:    "scaffold",
+		Title: "",
+		Argv:  []string{"new", "idea", "X", "--offline"},
+	}, fixedNow())
+	if !errors.Is(err, op.ErrPathEscape) {
+		t.Fatalf("Begin want ErrPathEscape for staged_dir=\".\", got %v", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("instance must survive refused Begin")
+	}
+}
+
+func TestAbortStagedDirDotDoesNotWipeInstance(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "KEEP.md")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".mycelium"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "scaffold",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".",
+		Argv:          []string{"new", "idea", "X"},
+		Renames: []journal.Rename{
+			{From: "staged.tmp", To: "dest.md", Done: false},
+		},
+	}
+	if err := journal.Save(root, j); err != nil {
+		t.Fatal(err)
+	}
+	if err := op.Abort(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("Abort must not RemoveAll instance root when staged_dir is \".\"")
+	}
+	if _, err := journal.Load(root); !errors.Is(err, journal.ErrNotExist) {
+		t.Fatal("journal should still be cleared")
+	}
+}
