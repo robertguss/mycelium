@@ -132,6 +132,7 @@ func Run(root string) Result {
 	checkFrontMatterAndSections(root, index, schemaByHome, add)
 	checkQuestionSparring(root, index, add)
 	checkGlossary(root, add)
+	checkDissent(root, index, add)
 	checkStageScoped(m, index, schemaByHome, add)
 	logBytes := checkLog(root, add)
 	checkWakeBrief(root, logBytes, add)
@@ -563,6 +564,54 @@ func checkGlossary(root string, add func(string, string, string, string)) {
 			"glossary",
 			"program/contracts/glossary.md",
 			fmt.Sprintf("add ### Definition under ## %s", term),
+		)
+	}
+}
+
+func checkDissent(root string, arts []artifactFile, add func(string, string, string, string)) {
+	byNum := map[string]struct{}{}
+	for _, a := range arts {
+		if a.ID.NS != "OQ" && a.ID.NS != "ASM" {
+			continue
+		}
+		byNum[fmt.Sprintf("%s-%d", a.ID.NS, a.ID.N)] = struct{}{}
+	}
+	for _, a := range arts {
+		if a.Home != "decisions" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(a.Rel)))
+		if err != nil {
+			continue
+		}
+		doc, err := metadata.Parse(b)
+		if err != nil {
+			continue
+		}
+		if !sparring.HasH2(doc.Body, "Dissent") {
+			continue
+		}
+		sec := sparring.SectionBody(doc.Body, "Dissent")
+		resolvable := false
+		for _, tok := range sparring.DissentIDs(sec) {
+			id, err := idpath.Parse(tok)
+			if err != nil {
+				continue
+			}
+			key := fmt.Sprintf("%s-%d", id.NS, id.N)
+			if _, ok := byNum[key]; ok {
+				resolvable = true
+				break
+			}
+		}
+		if resolvable {
+			continue
+		}
+		add(
+			a.IDStr+" ## Dissent has no resolvable OQ-### or ASM-###",
+			"dissent",
+			"program/contracts/sparring.md",
+			"cite an existing OQ-### or ASM-### in ## Dissent, or remove the heading",
 		)
 	}
 }
