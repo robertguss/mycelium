@@ -391,22 +391,22 @@ func TestTemplatesExist(t *testing.T) {
 	}
 }
 
-func TestMyceliumHandoffStillUnknown(t *testing.T) {
+func TestMyceliumHandoffKnownVerb(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
-	code := cli.Run([]string{"mycelium", "handoff"}, &stdout, &stderr, cli.Deps{})
-	if code != 1 {
-		t.Fatalf("exit %d want 1", code)
+	code := cli.Run([]string{"mycelium", "handoff", "--help"}, &stdout, &stderr, cli.Deps{})
+	if code != 0 {
+		t.Fatalf("exit %d want 0 stderr=%q", code, stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "unknown command") {
-		t.Fatalf("stderr=%q", stderr.String())
+	if !strings.Contains(stdout.String(), "mycelium handoff") {
+		t.Fatalf("stdout=%q", stdout.String())
 	}
 }
 
-func TestStateHandedOffStillRefuses(t *testing.T) {
+func TestStateHandedOffStillRefusesWithoutPacket(t *testing.T) {
 	t.Parallel()
 	parent := t.TempDir()
-	inst := scaffoldOffline(t, parent, "Slice1 Refuse")
+	inst := scaffoldOffline(t, parent, "Slice2 Refuse")
 	var stdout, stderr bytes.Buffer
 	code := cli.Run(
 		[]string{"mycelium", "state", "handed-off", "--dir", inst},
@@ -417,14 +417,17 @@ func TestStateHandedOffStillRefuses(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("exit %d want 1 stderr=%q", code, stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "handed-off") {
+	if !strings.Contains(stderr.String(), "handoff packet") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "mycelium handoff") {
 		t.Fatalf("stderr=%q", stderr.String())
 	}
 }
 
 func TestStoredHandedOffStillFailsCheck(t *testing.T) {
 	t.Parallel()
-	root := scaffoldOffline(t, t.TempDir(), "Slice1 Handed Off")
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Handed Off")
 	path := filepath.Join(root, "mycelium.toml")
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -446,12 +449,12 @@ func TestStoredHandedOffStillFailsCheck(t *testing.T) {
 	}
 	found := false
 	for _, f := range r.Findings {
-		if f.Convention == "lifecycle" && strings.Contains(f.What, "handed-off") && strings.Contains(f.What, "PHASE-06") {
+		if strings.Contains(f.What, "handed-off") && strings.Contains(f.What, "handoff packet") {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("want PHASE-06 lifecycle finding, got %v", r.Findings)
+		t.Fatalf("want handoff packet finding, got %v", r.Findings)
 	}
 }
 

@@ -24,7 +24,7 @@ import (
 	"github.com/robertguss/mycelium/internal/teach"
 )
 
-var logLineRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede)\t(\S+)\t`)
+var logLineRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede|handoff)\t(\S+)\t`)
 
 // Options for one new-<type> generation.
 type Options struct {

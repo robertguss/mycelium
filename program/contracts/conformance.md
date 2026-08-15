@@ -3,13 +3,13 @@
 Structure only (DEC-005).
 Checks never grade prose or thinking quality.
 
-## Must-implement checks (23)
+## Must-implement checks (24)
 
 1. Manifest present (`mycelium.toml`) and parses; required fields valid per
    `program/contracts/manifest.md`.
-2. Lifecycle state legality per `program/contracts/lifecycle.md` **PHASE-02
-   storage rules** (`clarified` legal; `handed-off` still FAIL; `simmering`
-   requires revisit grammar).
+2. Lifecycle state legality per `program/contracts/lifecycle.md` **PHASE-06
+   storage rules** (`clarified` legal without packet; `handed-off` LEGAL iff
+   packet structure passes; `simmering` requires revisit grammar).
 3. Tier legality and tier-aware artifact binds.
 4. ID uniqueness within each namespace home.
 5. ID-to-path integrity both directions (`program/contracts/naming.md`).
@@ -17,8 +17,8 @@ Checks never grade prose or thinking quality.
    `briefs/*.md`).
 7. Required front matter and sections per sidecar schema.
 8. Log line prefixes parseable. Ops:
-   `scaffold|new|tier|publish|check|state|wake|supersede`. Regex:
-   `^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede)\t(\S+)\t`
+   `scaffold|new|tier|publish|check|state|wake|supersede|handoff`. Regex:
+   `^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede|handoff)\t(\S+)\t`
 9. Interrupted operation: leftover journal or stale lock → teaching recovery
    (complete or `--abort-journal`).
 10. Undeclared extra top-level paths unless deviation
@@ -58,6 +58,13 @@ Checks never grade prose or thinking quality.
     equals this ID. If `supersedes` is set: peer exists, peer
     `status = "Superseded"`, peer `superseded_by` equals this ID. At most
     one inbound `superseded_by` per NEW. Binds in Slice 2.
+24. Packet structure IFF. If `handoff/PACKET.md` exists **or**
+    `state = handed-off`: required front matter; nine H2s; directories present;
+    copies exist for every ID listed; ID / path links resolve **inside**
+    `handoff/`; `time_budget` matches `^[0-9]+[mh]$`; `implementation_system`
+    is `pstack/poteto` or `manual`. If `state = handed-off` and `PACKET.md`
+    is missing → FAIL. If `handoff/` is absent and state is not `handed-off`
+    → item 24 does not fire. Binds in PHASE-06 Slice 2.
 
 ## Lift timing
 
@@ -89,6 +96,16 @@ PHASE-05 slices 1–5 (item 23 + related check/status deltas):
 | PHASE-05 Slice 3 | Item 1 G1 rule. `status` / `status --all` tolerance. G0–G3. |
 | PHASE-05 Slice 4 | No new check item. CHANGELOG + release script + checksum tests. |
 | PHASE-05 Slice 5 | MS-501 matrix harness in `internal/clitest` runs every PHASE-05 acceptance row. |
+
+PHASE-06 slices (item 8 handoff + item 24 + storage lift):
+
+| Slice | Check / lifecycle behavior |
+| --- | --- |
+| PHASE-06 Slice 1 | Parser + structure checker exist as functions. **No** CLI. **No** item 8 / 24 bind. **No** storage-rule lift. |
+| PHASE-06 Slice 2 | Command + `state handed-off` IFF + item 8 + item 24 + storage lift. Happy path + refuse table. **Bound.** |
+| PHASE-06 Slice 3 | No new check item. AGENTS.md + skill + reference. |
+| PHASE-06 Slice 4 | No new check item. Fixture + golden impl. |
+| PHASE-06 Slice 5 | MS-601 matrix harness in `internal/clitest`. |
 
 Do not require a wake brief on instances that never simmered. Do not grade
 brief prose. Do not require N artifacts. Do not add `reviews/` to the
@@ -129,9 +146,13 @@ always-allowed top-level list this slice (Slice 1 binds that).
 | Grade OLD/NEW prose | **No.** DEC-005. |
 | Fail G3 as a *status* fixture | **No.** G3 is status-only. |
 | Fail G1 because the *binary* contract requires `github_repo` | **No.** Instance contract wins. |
-| Add `handoff` / `upgrade` / `council` to the log-op regex | **No.** |
+| Add `upgrade` / `council` to the log-op regex | **No.** (`handoff` is bound in PHASE-06 Slice 2.) |
 | Call network / `gh` / read `GH_TOKEN` | **No.** |
 | Treat Install SLO or a GitHub Release as a check | **No.** |
+| Grade Framing / playbook / glossary prose | **No.** DEC-005. |
+| Fail `clarified` because `handoff/` is absent | **No.** |
+| Pass stored `handed-off` without `handoff/PACKET.md` | **No.** |
+| Resolve ID links to the instance tree outside `handoff/` | **No.** Self-contained. |
 
 ## Teaching errors
 
@@ -175,6 +196,7 @@ LICENSE
 CHANGELOG.md
 index.md
 briefs/
+handoff/
 .agents/
 .mycelium/
 .git/

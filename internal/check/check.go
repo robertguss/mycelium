@@ -12,6 +12,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
+	"github.com/robertguss/mycelium/internal/handoff"
 	"github.com/robertguss/mycelium/internal/idpath"
 	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/lifecycle"
@@ -45,7 +46,7 @@ type Result struct {
 var (
 	ErrNotInstance = errors.New("check: not a mycelium instance")
 	linkRE         = regexp.MustCompile(`\b(DEC|ASM|EVD|SPK|FND|REC|REQ|OQ|RSK|PHASE|MS|CMP|RPT|RCL)-[0-9]+\b`)
-	logLineRE      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede)\t(\S+)\t`)
+	logLineRE      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede|handoff)\t(\S+)\t`)
 	dateRE         = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 	h2RE           = regexp.MustCompile(`(?m)^## (.+)$`)
 )
@@ -53,7 +54,7 @@ var (
 var alwaysAllowedTop = map[string]struct{}{
 	"README.md": {}, "mycelium.toml": {}, "log.md": {}, "CONTEXT.md": {},
 	"AGENTS.md": {}, ".gitignore": {}, "LICENSE": {}, "CHANGELOG.md": {},
-	"index.md": {}, "briefs": {},
+	"index.md": {}, "briefs": {}, "handoff": {},
 	".agents": {}, ".mycelium": {}, ".git": {}, ".github": {}, "program": {},
 }
 
@@ -111,6 +112,7 @@ func Run(root string) Result {
 
 	checkLifecycle(m, add)
 	checkJournalLock(root, &r, add)
+	checkHandoffPacket(root, m.State, add)
 
 	schemas, err := loadSchemas(root)
 	if err != nil {
@@ -165,8 +167,9 @@ func Run(root string) Result {
 
 func checkLifecycle(m manifest.Manifest, add func(string, string, string, string)) {
 	switch m.State {
-	case "spark", "exploring", "clarified", "archived":
-		// ok; leftover revisit is not a fail
+	case "spark", "exploring", "clarified", "handed-off", "archived":
+		// ok; leftover revisit is not a fail.
+		// handed-off packet IFF is item 24 (checkHandoffPacket).
 	case "simmering":
 		if _, _, _, err := revisit.Parse(m.Revisit); err != nil {
 			add(
@@ -176,20 +179,38 @@ func checkLifecycle(m manifest.Manifest, add func(string, string, string, string
 				"set revisit to YYYY-MM-DD (UTC) or event:<kebab>",
 			)
 		}
-	case "handed-off":
-		add(
-			"state=handed-off requires a PHASE-06 handoff packet",
-			"lifecycle",
-			"program/contracts/lifecycle.md",
-			"stay in clarified, or mycelium state archived; packet command is not shipped",
-		)
 	default:
 		add(
 			fmt.Sprintf("unknown state %q", m.State),
 			"lifecycle",
 			"program/contracts/lifecycle.md",
-			"set state to spark|exploring|simmering|clarified|archived",
+			"set state to spark|exploring|simmering|clarified|handed-off|archived",
 		)
+	}
+}
+
+// checkHandoffPacket is conformance item 24: packet structure IFF.
+// Fires when handoff/PACKET.md exists or state is handed-off.
+// If handoff/ is absent and state is not handed-off, does not fire.
+func checkHandoffPacket(root, state string, add func(string, string, string, string)) {
+	packetPath := filepath.Join(root, "handoff", "PACKET.md")
+	_, err := os.Stat(packetPath)
+	exists := err == nil
+	if !exists && state != "handed-off" {
+		return
+	}
+	if !exists {
+		add(
+			"state=handed-off requires a handoff packet",
+			"lifecycle",
+			"program/contracts/lifecycle.md",
+			"mycelium handoff [--dir PATH]",
+		)
+		return
+	}
+	findings := handoff.Check(os.DirFS(filepath.Join(root, "handoff")))
+	for _, f := range findings {
+		add(f.What, "handoff-packet", "program/contracts/handoff-packet.md", f.Fix)
 	}
 }
 
@@ -674,7 +695,7 @@ func checkLog(root string, add func(string, string, string, string)) []byte {
 				fmt.Sprintf("log.md line %d has illegal prefix", i+1),
 				"log-prefix",
 				"program/contracts/conformance.md",
-				"use YYYY-MM-DD\\t(scaffold|new|tier|publish|check|state|wake|supersede)\\t<id>\\t…",
+				"use YYYY-MM-DD\\t(scaffold|new|tier|publish|check|state|wake|supersede|handoff)\\t<id>\\t…",
 			)
 		}
 	}

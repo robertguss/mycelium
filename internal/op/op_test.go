@@ -485,6 +485,54 @@ func TestCommitSupersedeAllowsReplaceArtifact(t *testing.T) {
 	}
 }
 
+func TestCommitHandoffAllowsReplaceUnderHandoff(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, op.Intent{
+		Op:      "handoff",
+		Title:   "clarified -> handed-off",
+		LogLine: "2026-08-15\thandoff\tHO-001\tclarified -> handed-off",
+		Argv:    []string{"handoff"},
+		OpID:    "test-handoff",
+	}, fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet := filepath.Join(root, "handoff", "PACKET.md")
+	if err := os.MkdirAll(filepath.Dir(packet), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(packet, []byte("BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "log.md"), []byte("LOG-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "index.md"), []byte("INDEX-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "mycelium.toml"), []byte("MAN-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Stage([]op.Staged{
+		{RelTo: "handoff/PACKET.md", Content: []byte("AFTER\n")},
+		{RelTo: "index.md", Content: []byte("INDEX-AFTER\n")},
+		{RelTo: "log.md", Content: []byte("LOG-AFTER\n")},
+		{RelTo: "mycelium.toml", Content: []byte("MAN-AFTER\n")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Commit(); err != nil {
+		t.Fatalf("handoff commit: %v", err)
+	}
+	b, err := os.ReadFile(packet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "AFTER\n" {
+		t.Fatalf("packet=%q", b)
+	}
+}
+
 func TestAbortRefusesLiveLock(t *testing.T) {
 	root := t.TempDir()
 	s, err := op.Begin(root, intent("DEC-001"), fixedNow())

@@ -51,8 +51,11 @@ func TestStateWakeHermetic(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("handed-off: exit %d want 1 stderr=%q", code, stderr)
 	}
-	if !strings.Contains(stderr, "PHASE-06") {
-		t.Fatalf("want PHASE-06 teaching error, got %q", stderr)
+	if !strings.Contains(stderr, "handoff packet") {
+		t.Fatalf("want handoff packet teaching error, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "mycelium handoff") {
+		t.Fatalf("want mycelium handoff in fix, got %q", stderr)
 	}
 
 	code, stdout, stderr = runCLI(t, clk, rec, env, work, "state", "clarified", "--dir", inst)
@@ -217,7 +220,7 @@ func TestWakeBriefSharedAndOverwrite(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("handed-off check exit %d want 1 stderr=%q", code, stderr)
 	}
-	if !strings.Contains(stderr, "PHASE-06") {
+	if !strings.Contains(stderr, "handoff packet") {
 		t.Fatalf("stderr=%q", stderr)
 	}
 

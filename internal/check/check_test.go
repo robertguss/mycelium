@@ -101,15 +101,15 @@ func TestHandedOffStateFail(t *testing.T) {
 	}
 	found := false
 	for _, f := range r.Findings {
-		if f.Convention == "lifecycle" && strings.Contains(f.What, "handed-off") && strings.Contains(f.What, "PHASE-06") {
+		if strings.Contains(f.What, "handed-off") && strings.Contains(f.What, "handoff packet") {
 			found = true
-			if f.Contract != "program/contracts/lifecycle.md" {
-				t.Fatalf("contract=%q", f.Contract)
+			if !strings.Contains(f.Fix, "mycelium handoff") {
+				t.Fatalf("fix=%q", f.Fix)
 			}
 		}
 	}
 	if !found {
-		t.Fatalf("want PHASE-06 lifecycle finding, got %v", r.Findings)
+		t.Fatalf("want handoff-packet finding, got %v", r.Findings)
 	}
 }
 
@@ -299,8 +299,8 @@ func TestLegalNextTable(t *testing.T) {
 		"spark":      {"exploring", "archived"},
 		"exploring":  {"simmering", "clarified", "archived"},
 		"simmering":  {"exploring", "archived"},
-		"clarified":  {"archived"},
-		"handed-off": nil,
+		"clarified":  {"handed-off", "archived"},
+		"handed-off": {"archived"},
 		"archived":   nil,
 		"nope":       nil,
 	}
