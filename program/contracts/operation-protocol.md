@@ -6,10 +6,14 @@ Applies to mutating multi-file commands:
 - `mycelium new <type>`
 - `mycelium tier`
 - `mycelium publish`
+- `mycelium state`
+- `mycelium wake`
+- `mycelium index`
 
-Does **not** apply to `mycelium version` or `mycelium check`, except
-`mycelium check --abort-journal` which clears an interrupted journal (no
-confirmation step; see `program/contracts/conformance.md`).
+Does **not** apply to `mycelium version`, `mycelium status` (read-only; never
+mutates), or `mycelium check`, except `mycelium check --abort-journal` which
+clears an interrupted journal (no confirmation step; see
+`program/contracts/conformance.md`).
 
 ## Steps
 
@@ -22,10 +26,14 @@ confirmation step; see `program/contracts/conformance.md`).
 3. **Stage** — write outputs under `.mycelium/stage/<op-id>/` and record intent
    in the journal.
 4. **Journal** — `.mycelium/journal.json` with `schema_version = 1` and
-   `op` ∈ `scaffold` | `new` | `tier` | `publish`.
+   `op` ∈ `scaffold` | `new` | `tier` | `publish` | `state` | `wake` | `index`.
 5. **Commit** — atomic renames in fixed order:
    - Artifact generation: artifact file(s), then log, then manifest **last**.
    - Scaffold: skeleton files, then `program/`, then log, then manifest **last**.
+   - `state` / `wake`: brief + `briefs/LATEST.md` (if wake), then `index.md`,
+     then `log.md`, then `mycelium.toml` **last**.
+   - `index`: regenerate `index.md` only (no log line, no skill emit, no state
+     change).
 6. **Rollback** — failure before the first rename removes staged files and
    changes nothing. After a partial commit the journal survives.
 7. **Resume** — re-running the same argv resumes under `original_id`; do not
