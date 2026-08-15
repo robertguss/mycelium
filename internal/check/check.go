@@ -14,6 +14,7 @@ import (
 
 	"github.com/robertguss/mycelium/internal/idpath"
 	"github.com/robertguss/mycelium/internal/journal"
+	"github.com/robertguss/mycelium/internal/lifecycle"
 	"github.com/robertguss/mycelium/internal/lock"
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/metadata"
@@ -50,24 +51,9 @@ var alwaysAllowedTop = map[string]struct{}{
 	".agents": {}, ".mycelium": {}, ".git": {}, ".github": {}, "program": {},
 }
 
-// LegalNext encodes the lifecycle transition table (PHASE-01; commanded later).
+// LegalNext is the PHASE-02 commanded edge table (delegates to lifecycle).
 func LegalNext(from string) []string {
-	switch from {
-	case "spark":
-		return []string{"exploring", "archived"}
-	case "exploring":
-		return []string{"simmering", "clarified", "archived"}
-	case "simmering":
-		return []string{"exploring", "archived"}
-	case "clarified":
-		return []string{"handed-off", "archived"}
-	case "handed-off":
-		return []string{"archived"}
-	case "archived":
-		return nil
-	default:
-		return nil
-	}
+	return lifecycle.LegalNext(from)
 }
 
 // FindRoot walks start upward looking for mycelium.toml.
