@@ -1,0 +1,12 @@
+schema_version = 1
+idea_name = "Legacy Extra"
+slug = "legacy-extra"
+state = "spark"
+tier = "focused"
+methodology_version = "2.0.0"
+generated_by_cli_version = "0.1.0-dev"
+created_date = "2026-08-01"
+updated_date = "2026-08-01"
+revisit = ""
+github_repo = ""
+legacy_note = "append-only"

@@ -121,21 +121,22 @@ func TestRunAllOfflineTwoInstances(t *testing.T) {
 	if fake.Called("gh") {
 		t.Fatalf("gh was run: %+v", fake.Calls)
 	}
-	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
-	if len(lines) != 4 {
-		t.Fatalf("want 4 lines, got %d: %q", len(lines), stdout.String())
+	out := stdout.String()
+	if !strings.Contains(out, "partial: local-only (offline)") {
+		t.Fatalf("missing local-only: %q", out)
 	}
-	if lines[0] != "partial: local-only (offline)" {
-		t.Fatalf("first line=%q", lines[0])
+	if !strings.Contains(out, "partial: legacy-manifest (") ||
+		!strings.Contains(out, "research-program.toml without mycelium.toml") {
+		t.Fatalf("missing legacy-manifest for master-shaped child: %q", out)
 	}
-	if lines[1] != "garden-lighting\tsimmering\tfocused\t2026-08-08\tunpublished\tunpublished" {
-		t.Fatalf("row1=%q", lines[1])
+	if !strings.Contains(out, "garden-lighting\tsimmering\tfocused\t2026-08-08\tunpublished\tunpublished") {
+		t.Fatalf("row1 missing: %q", out)
 	}
-	if lines[2] != "wake-fixture\texploring\tfocused\t\tunpublished\tunpublished" {
-		t.Fatalf("row2=%q", lines[2])
+	if !strings.Contains(out, "wake-fixture\texploring\tfocused\t\tunpublished\tunpublished") {
+		t.Fatalf("row2 missing: %q", out)
 	}
-	if lines[3] != "2 ideas (1 overdue, partial)" {
-		t.Fatalf("summary=%q", lines[3])
+	if !strings.HasSuffix(strings.TrimSpace(out), "2 ideas (1 overdue, partial)") {
+		t.Fatalf("summary missing: %q", out)
 	}
 }
 
@@ -306,8 +307,8 @@ func TestRunAllUnreadableChildTeachContinue(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.Contains(stderr.String(), "cannot read instance") {
-		t.Fatalf("stderr=%q", stderr.String())
+	if !strings.Contains(stdout.String(), "partial: legacy-manifest (") {
+		t.Fatalf("stdout missing legacy-manifest: %q", stdout.String())
 	}
 	if strings.Contains(stdout.String(), "bad\t") {
 		t.Fatalf("bad row on stdout: %q", stdout.String())
@@ -408,4 +409,129 @@ func field(t *testing.T, stdout, key string) string {
 	}
 	t.Fatalf("missing %s in %q", key, stdout)
 	return ""
+}
+
+func TestRunTolerantMissingGithubRepo(t *testing.T) {
+	root := t.TempDir()
+	toml := `schema_version = 1
+idea_name = "Legacy One"
+slug = "legacy-one"
+state = "spark"
+tier = "focused"
+methodology_version = "2.0.0"
+generated_by_cli_version = "0.1.0-dev"
+created_date = "2026-08-01"
+updated_date = "2026-08-01"
+revisit = ""
+`
+	if err := os.WriteFile(filepath.Join(root, "mycelium.toml"), []byte(toml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := statuscmd.Run(statuscmd.Options{Dir: root, Cwd: t.TempDir()}, statuscmd.Deps{
+		Clock:  clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if field(t, stdout.String(), "slug") != "legacy-one" {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
+}
+
+func TestRunTolerantUnknownKey(t *testing.T) {
+	root := writeFixtureDir(t, t.TempDir(), "legacy-extra", "spark", "focused", "", "")
+	b, err := os.ReadFile(filepath.Join(root, "mycelium.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "mycelium.toml"), append(b, []byte("legacy_note = \"append-only\"\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := statuscmd.Run(statuscmd.Options{Dir: root, Cwd: t.TempDir()}, statuscmd.Deps{
+		Clock:  clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if field(t, stdout.String(), "slug") != "legacy-extra" {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
+}
+
+func TestRunSingleUnreadablePartial(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "mycelium.toml"), []byte("{{{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := statuscmd.Run(statuscmd.Options{Dir: root, Cwd: t.TempDir()}, statuscmd.Deps{
+		Clock:  clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if code != 0 {
+		t.Fatalf("exit %d want 0", code)
+	}
+	if !strings.Contains(stdout.String(), "partial: legacy-manifest (") {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
+}
+
+func TestRunAllIdeasRootEnvAndTilde(t *testing.T) {
+	home := t.TempDir()
+	ideas := filepath.Join(home, "ideas")
+	writeFixtureDir(t, filepath.Join(ideas, "tilde-idea"), "tilde-idea", "spark", "focused", "", "")
+
+	var stdout, stderr bytes.Buffer
+	code := statuscmd.Run(statuscmd.Options{
+		All: true, Offline: true, Cwd: t.TempDir(),
+	}, statuscmd.Deps{
+		Clock:  clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		Stdout: &stdout,
+		Stderr: &stderr,
+		Runner: &execrun.Fake{},
+		LookupEnv: func(k string) string {
+			if k == "MYCELIUM_IDEAS_ROOT" {
+				return "~/ideas"
+			}
+			return ""
+		},
+		UserHomeDir: func() (string, error) { return home, nil },
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "tilde-idea\tspark") {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
+}
+
+func TestRunAllRootTilde(t *testing.T) {
+	home := t.TempDir()
+	ideas := filepath.Join(home, "portfolio")
+	writeFixtureDir(t, filepath.Join(ideas, "root-tilde"), "root-tilde", "exploring", "focused", "", "")
+
+	var stdout, stderr bytes.Buffer
+	code := statuscmd.Run(statuscmd.Options{
+		All: true, Root: "~/portfolio", Offline: true, Cwd: t.TempDir(),
+	}, statuscmd.Deps{
+		Clock:       clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		Stdout:      &stdout,
+		Stderr:      &stderr,
+		Runner:      &execrun.Fake{},
+		LookupEnv:   func(string) string { return "" },
+		UserHomeDir: func() (string, error) { return home, nil },
+	})
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(stdout.String(), "root-tilde\texploring") {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
 }

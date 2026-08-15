@@ -81,18 +81,57 @@ type Manifest struct {
 	Deviations            []Deviation
 }
 
-// Parse decodes and validates mycelium.toml bytes.
+// Parse decodes and validates mycelium.toml bytes (strict: unknown keys refuse;
+// required set is DefaultRequiredKeys, including github_repo).
 func Parse(data []byte) (Manifest, error) {
+	return ParseWithRequired(data, requiredTop)
+}
+
+// ParseWithRequired is like Parse but uses required for the required-key set.
+// Unknown top-level keys still refuse. Missing github_repo is allowed when it
+// is not listed in required (defaults to "").
+func ParseWithRequired(data []byte, required []string) (Manifest, error) {
+	return parse(data, parseOpts{
+		required:      required,
+		refuseUnknown: true,
+	})
+}
+
+// ParseTolerant decodes for portfolio status (DEC-011): ignore unknown
+// top-level keys; missing github_repo → "". Not TOML or no usable slug → error
+// (caller emits partial: legacy-manifest). Does not weaken Parse.
+func ParseTolerant(data []byte) (Manifest, error) {
+	req := make([]string, 0, len(requiredTop))
+	for _, k := range requiredTop {
+		if k == "github_repo" {
+			continue
+		}
+		req = append(req, k)
+	}
+	return parse(data, parseOpts{
+		required:      req,
+		refuseUnknown: false,
+	})
+}
+
+type parseOpts struct {
+	required      []string
+	refuseUnknown bool
+}
+
+func parse(data []byte, opts parseOpts) (Manifest, error) {
 	var raw map[string]any
 	if err := toml.Unmarshal(data, &raw); err != nil {
 		return Manifest{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
-	for k := range raw {
-		if _, ok := allowedTop[k]; !ok {
-			return Manifest{}, fmt.Errorf("%w: %s", ErrUnknownKey, k)
+	if opts.refuseUnknown {
+		for k := range raw {
+			if _, ok := allowedTop[k]; !ok {
+				return Manifest{}, fmt.Errorf("%w: %s", ErrUnknownKey, k)
+			}
 		}
 	}
-	for _, k := range requiredTop {
+	for _, k := range opts.required {
 		if _, ok := raw[k]; !ok {
 			return Manifest{}, fmt.Errorf("%w: %s", ErrRequired, k)
 		}
@@ -166,9 +205,13 @@ func Parse(data []byte) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, fmt.Errorf("%w: revisit", ErrInvalid)
 	}
-	m.GithubRepo, err = asString(raw["github_repo"])
-	if err != nil {
-		return Manifest{}, fmt.Errorf("%w: github_repo", ErrInvalid)
+	if _, ok := raw["github_repo"]; ok {
+		m.GithubRepo, err = asString(raw["github_repo"])
+		if err != nil {
+			return Manifest{}, fmt.Errorf("%w: github_repo", ErrInvalid)
+		}
+	} else {
+		m.GithubRepo = ""
 	}
 	if m.State == "simmering" && m.Revisit == "" {
 		return Manifest{}, fmt.Errorf("%w: revisit required when state=simmering", ErrInvalid)

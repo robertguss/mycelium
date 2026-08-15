@@ -105,14 +105,10 @@ func runSingle(opts Options, deps Deps) int {
 		)
 	}
 
-	m, err := loadManifest(root)
+	m, err := loadManifestTolerant(root)
 	if err != nil {
-		return teach.Write(deps.Stderr,
-			err.Error(),
-			"manifest",
-			"program/contracts/manifest.md",
-			"fix mycelium.toml required fields and retry",
-		)
+		fmt.Fprintf(deps.Stdout, "partial: legacy-manifest (%s: %v)\n", root, err)
+		return 0
 	}
 
 	github := m.GithubRepo
@@ -141,7 +137,7 @@ func runAll(opts Options, deps Deps) int {
 	}
 
 	offline := opts.Offline || scaffold.OfflineFromEnv(deps.LookupEnv)
-	local := scanLocal(opts, deps, cwd)
+	local, legacy := scanLocal(opts, deps, cwd)
 
 	complete := false
 	reason := ""
@@ -170,6 +166,9 @@ func runAll(opts Options, deps Deps) int {
 	if !complete {
 		fmt.Fprintf(deps.Stdout, "partial: local-only (%s)\n", reason)
 	}
+	for _, p := range legacy {
+		fmt.Fprintf(deps.Stdout, "partial: legacy-manifest (%s)\n", p)
+	}
 	for _, idea := range ideas {
 		fmt.Fprintf(deps.Stdout, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			idea.Slug, idea.State, idea.Tier, idea.Revisit, idea.Flag, idea.Github)
@@ -183,8 +182,9 @@ func runAll(opts Options, deps Deps) int {
 	return 0
 }
 
-func scanLocal(opts Options, deps Deps, cwd string) []Idea {
+func scanLocal(opts Options, deps Deps, cwd string) ([]Idea, []string) {
 	bySlug := map[string]Idea{}
+	var legacy []string
 
 	rootPath := resolveIdeasRoot(opts, deps)
 	entries, err := os.ReadDir(rootPath)
@@ -194,9 +194,9 @@ func scanLocal(opts Options, deps Deps, cwd string) []Idea {
 				continue
 			}
 			child := filepath.Join(rootPath, e.Name())
-			idea, ok, teachErr := tryLoadIdea(child)
-			if teachErr != "" {
-				writeScanTeach(deps.Stderr, teachErr)
+			idea, ok, partial := tryLoadIdea(child)
+			if partial != "" {
+				legacy = append(legacy, partial)
 				continue
 			}
 			if !ok {
@@ -211,9 +211,9 @@ func scanLocal(opts Options, deps Deps, cwd string) []Idea {
 		anchor = absAgainst(opts.Dir, cwd)
 	}
 	if inst, err := check.FindRoot(anchor); err == nil {
-		idea, ok, teachErr := tryLoadIdea(inst)
-		if teachErr != "" {
-			writeScanTeach(deps.Stderr, teachErr)
+		idea, ok, partial := tryLoadIdea(inst)
+		if partial != "" {
+			legacy = append(legacy, partial)
 		} else if ok {
 			bySlug[idea.Slug] = idea
 		}
@@ -223,7 +223,7 @@ func scanLocal(opts Options, deps Deps, cwd string) []Idea {
 	for _, idea := range bySlug {
 		out = append(out, idea)
 	}
-	return out
+	return out, legacy
 }
 
 func resolveIdeasRoot(opts Options, deps Deps) string {
@@ -259,11 +259,14 @@ func expandTilde(path, home string) string {
 func tryLoadIdea(dir string) (Idea, bool, string) {
 	tom := filepath.Join(dir, "mycelium.toml")
 	if _, err := os.Stat(tom); err != nil {
+		if _, err2 := os.Stat(filepath.Join(dir, "research-program.toml")); err2 == nil {
+			return Idea{}, false, fmt.Sprintf("%s: research-program.toml without mycelium.toml", dir)
+		}
 		return Idea{}, false, ""
 	}
-	m, err := loadManifest(dir)
+	m, err := loadManifestTolerant(dir)
 	if err != nil {
-		return Idea{}, false, fmt.Sprintf("cannot read instance %s: %v", dir, err)
+		return Idea{}, false, fmt.Sprintf("%s: %v", dir, err)
 	}
 	return Idea{
 		Slug:    m.Slug,
@@ -275,21 +278,14 @@ func tryLoadIdea(dir string) (Idea, bool, string) {
 	}, true, ""
 }
 
-func writeScanTeach(stderr io.Writer, what string) {
-	fmt.Fprintf(stderr, "mycelium: %s\n", what)
-	fmt.Fprintf(stderr, "convention: status-local-scan\n")
-	fmt.Fprintf(stderr, "contract: program/contracts/status.md\n")
-	fmt.Fprintf(stderr, "fix: fix or remove the unreadable instance and retry\n")
-}
-
-func loadManifest(root string) (manifest.Manifest, error) {
+func loadManifestTolerant(root string) (manifest.Manifest, error) {
 	manBytes, err := os.ReadFile(filepath.Join(root, "mycelium.toml"))
 	if err != nil {
 		return manifest.Manifest{}, fmt.Errorf("cannot read mycelium.toml: %w", err)
 	}
-	m, err := manifest.Parse(manBytes)
+	m, err := manifest.ParseTolerant(manBytes)
 	if err != nil {
-		return manifest.Manifest{}, fmt.Errorf("invalid mycelium.toml: %w", err)
+		return manifest.Manifest{}, err
 	}
 	return m, nil
 }
