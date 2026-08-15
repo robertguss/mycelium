@@ -422,7 +422,12 @@ func containsArg(args []string, want string) bool {
 func TestGitInitIgnoresGIT_DIR(t *testing.T) {
 	root := t.TempDir()
 	sibling := filepath.Join(root, "hijacked.git")
+	target := filepath.Join(root, "instance-dest")
 	if err := os.Mkdir(sibling, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadDir(sibling)
+	if err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("GIT_DIR", sibling)
@@ -432,9 +437,10 @@ func TestGitInitIgnoresGIT_DIR(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := scaffold.Run(scaffold.Options{
 		Name:    "Git Dir Trap",
+		Dir:     target,
 		Offline: true,
 		Cwd:     root,
-		Argv:    []string{"new", "idea", "Git Dir Trap", "--offline"},
+		Argv:    []string{"new", "idea", "Git Dir Trap", "--dir", target, "--offline"},
 	}, scaffold.Deps{
 		Clock:  clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
 		Runner: rec,
@@ -444,14 +450,23 @@ func TestGitInitIgnoresGIT_DIR(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d stderr=%q", code, stderr.String())
 	}
-	inst := filepath.Join(root, "git-dir-trap")
-	if _, err := os.Stat(filepath.Join(inst, ".git")); err != nil {
-		t.Fatalf("instance .git missing: %v", err)
+	if _, err := os.Stat(filepath.Join(target, ".git")); err != nil {
+		t.Fatalf("target/.git missing: %v", err)
+	}
+	after, err := os.ReadDir(sibling)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(before) {
+		t.Fatalf("sibling GIT_DIR touched: before=%d after=%d", len(before), len(after))
 	}
 	if _, err := os.Stat(filepath.Join(sibling, "HEAD")); err == nil {
 		t.Fatalf("git init wrote into GIT_DIR sibling %s", sibling)
 	}
-	assertGitRepoNoCommits(t, inst)
+	assertGitRepoNoCommits(t, target)
+	if rec.Called("gh") {
+		t.Fatal("gh must not run")
+	}
 	for _, c := range rec.Calls {
 		if c.Name != "git" {
 			continue
@@ -460,6 +475,38 @@ func TestGitInitIgnoresGIT_DIR(t *testing.T) {
 		if !strings.Contains(joined, "--git-dir=.git") || !strings.Contains(joined, "--work-tree=.") {
 			t.Fatalf("git args missing explicit dir flags: %v", c.Args)
 		}
+	}
+}
+
+func TestPruneMyceliumLeftoversAndContinue(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "leftover-dest")
+	if err := os.MkdirAll(filepath.Join(target, ".mycelium", "stage", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(target, ".mycelium", "lock"), []byte("pid=1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	var stdout, stderr bytes.Buffer
+	code := scaffold.Run(scaffold.Options{
+		Name:    "Leftover Dest",
+		Dir:     target,
+		Offline: true,
+		Cwd:     root,
+	}, scaffold.Deps{
+		Clock:  clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
+		Runner: rec,
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	mustExist(t, target, "mycelium.toml")
+	mustExist(t, target, ".git")
+	if _, err := os.Stat(filepath.Join(target, ".mycelium")); !os.IsNotExist(err) {
+		t.Fatal("expected .mycelium pruned after success")
 	}
 }
 

@@ -172,3 +172,67 @@ func TestCLINewIdeaMYCELIUM_OFFLINE(t *testing.T) {
 		t.Fatal("gh invoked under MYCELIUM_OFFLINE=1")
 	}
 }
+
+func TestCLIGIT_DIRWithDirFlag(t *testing.T) {
+	root := t.TempDir()
+	sibling := filepath.Join(root, "sibling.git")
+	target := filepath.Join(root, "cli-target")
+	if err := os.Mkdir(sibling, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_DIR", sibling)
+	t.Setenv("GIT_WORK_TREE", root)
+
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", "CLI Dir", "--offline", "--dir", target},
+		&stdout, &stderr,
+		cli.Deps{
+			Clock:     clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
+			Runner:    rec,
+			Getwd:     func() (string, error) { return root, nil },
+			LookupEnv: func(string) string { return "" },
+		},
+	)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(target, ".git")); err != nil {
+		t.Fatalf("target/.git missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sibling, "HEAD")); err == nil {
+		t.Fatal("sibling GIT_DIR should be untouched")
+	}
+	if rec.Called("gh") {
+		t.Fatal("gh must not run")
+	}
+}
+
+func TestCLIEmptySlugRefuses(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", "!!!", "--offline"},
+		&stdout, &stderr,
+		cli.Deps{
+			Clock:     clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
+			Runner:    &execrun.Recording{Inner: execrun.Real{}},
+			Getwd:     func() (string, error) { return root, nil },
+			LookupEnv: func(string) string { return "" },
+		},
+	)
+	if code != 1 {
+		t.Fatalf("exit %d want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "slugify") && !strings.Contains(stderr.String(), "cannot slugify") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("empty-slug must not create target, got %v", entries)
+	}
+}

@@ -198,12 +198,32 @@ func Run(opts Options, deps Deps) int {
 			)
 		}
 		if existing == nil {
-			return teach.Write(deps.Stderr,
-				fmt.Sprintf("refuse: target already exists: %s", displayPath),
-				"scaffold-dir",
-				"framework/phases/PHASE-01-implementation-brief.md",
-				"choose a new name, pass --dir to a free path, or remove the existing path",
-			)
+			ok, perr := onlyMyceliumLeftovers(target)
+			if perr != nil {
+				return teach.Write(deps.Stderr,
+					fmt.Sprintf("cannot inspect target: %v", perr),
+					"scaffold-dir",
+					"framework/phases/PHASE-01-implementation-brief.md",
+					"fix filesystem permissions and retry",
+				)
+			}
+			if !ok {
+				return teach.Write(deps.Stderr,
+					fmt.Sprintf("refuse: target already exists: %s", displayPath),
+					"scaffold-dir",
+					"framework/phases/PHASE-01-implementation-brief.md",
+					"choose a new name, pass --dir to a free path, or remove the existing path",
+				)
+			}
+			if err := os.RemoveAll(filepath.Join(target, ".mycelium")); err != nil {
+				return teach.Write(deps.Stderr,
+					fmt.Sprintf("cannot prune leftover .mycelium: %v", err),
+					"scaffold-dir",
+					"framework/phases/PHASE-01-implementation-brief.md",
+					"remove the .mycelium directory manually, then retry",
+				)
+			}
+			createdRoot = true
 		}
 	case os.IsNotExist(err):
 		if err := os.Mkdir(target, 0o755); err != nil {
@@ -316,6 +336,20 @@ func rollbackOrClose(sess *op.Session) {
 	if err := sess.Rollback(); errors.Is(err, op.ErrPartialCommit) {
 		_ = sess.Close()
 	}
+}
+
+// onlyMyceliumLeftovers reports whether root contains solely a .mycelium/ dir
+// (failed prior attempt with no journal). Empty dirs and any other files refuse.
+func onlyMyceliumLeftovers(root string) (bool, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return false, err
+	}
+	if len(entries) != 1 {
+		return false, nil
+	}
+	e := entries[0]
+	return e.Name() == ".mycelium" && e.IsDir(), nil
 }
 
 func buildFiles(ideaName, ideaSlug, tier, date, cliVersion string) ([]op.Staged, error) {

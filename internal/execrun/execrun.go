@@ -73,10 +73,11 @@ func (Real) Run(ctx context.Context, name string, args []string, opts RunOpts) (
 	cmd.Dir = opts.Dir
 	switch {
 	case opts.Dir != "":
-		cmd.Env = WithoutGitOverrides(os.Environ())
+		base := WithoutGitOverrides(os.Environ())
 		if len(opts.Env) > 0 {
-			cmd.Env = append(cmd.Env, opts.Env...)
+			base = append(base, WithoutGitOverrides(opts.Env)...)
 		}
+		cmd.Env = base
 	case len(opts.Env) > 0:
 		cmd.Env = append(os.Environ(), opts.Env...)
 	}
