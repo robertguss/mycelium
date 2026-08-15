@@ -1,7 +1,8 @@
-// Package statuscmd implements mycelium status and status --all (local scan).
+// Package statuscmd implements mycelium status and status --all.
 package statuscmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -39,7 +40,7 @@ type Deps struct {
 	UserHomeDir func() (string, error)
 }
 
-// Idea is one portfolio row (local-only in Slice 5).
+// Idea is one portfolio row after local scan and optional GitHub merge.
 type Idea struct {
 	Slug    string
 	State   string
@@ -140,28 +141,46 @@ func runAll(opts Options, deps Deps) int {
 	}
 
 	offline := opts.Offline || scaffold.OfflineFromEnv(deps.LookupEnv)
-	reason := partialReason(offline, deps.Runner)
-	ideas := scanLocal(opts, deps, cwd)
+	local := scanLocal(opts, deps, cwd)
+
+	complete := false
+	reason := ""
+	var remotes []Remote
+
+	switch {
+	case offline:
+		reason = "offline"
+	default:
+		if _, err := deps.Runner.LookPath("gh"); err != nil {
+			reason = "gh missing"
+			break
+		}
+		fetched, ferr := fetchRemotes(context.Background(), deps.Runner)
+		if ferr != nil {
+			reason = "gh failed"
+			break
+		}
+		remotes = fetched
+		complete = true
+	}
+
+	ideas := MergeIdeas(local, remotes, opts.Archived)
 	SortIdeas(ideas, deps.Clock.Now())
 
-	fmt.Fprintf(deps.Stdout, "partial: local-only (%s)\n", reason)
+	if !complete {
+		fmt.Fprintf(deps.Stdout, "partial: local-only (%s)\n", reason)
+	}
 	for _, idea := range ideas {
 		fmt.Fprintf(deps.Stdout, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			idea.Slug, idea.State, idea.Tier, idea.Revisit, idea.Flag, idea.Github)
 	}
 	overdue := countOverdue(ideas, deps.Clock.Now())
-	fmt.Fprintf(deps.Stdout, "%d ideas (%d overdue, partial)\n", len(ideas), overdue)
+	mode := "partial"
+	if complete {
+		mode = "complete"
+	}
+	fmt.Fprintf(deps.Stdout, "%d ideas (%d overdue, %s)\n", len(ideas), overdue, mode)
 	return 0
-}
-
-func partialReason(offline bool, runner execrun.Runner) string {
-	if offline {
-		return "offline"
-	}
-	if _, err := runner.LookPath("gh"); err != nil {
-		return "gh missing"
-	}
-	return "offline"
 }
 
 func scanLocal(opts Options, deps Deps, cwd string) []Idea {
@@ -183,9 +202,6 @@ func scanLocal(opts Options, deps Deps, cwd string) []Idea {
 			if !ok {
 				continue
 			}
-			if idea.State == "archived" && !opts.Archived {
-				continue
-			}
 			bySlug[idea.Slug] = idea
 		}
 	}
@@ -199,9 +215,7 @@ func scanLocal(opts Options, deps Deps, cwd string) []Idea {
 		if teachErr != "" {
 			writeScanTeach(deps.Stderr, teachErr)
 		} else if ok {
-			if idea.State != "archived" || opts.Archived {
-				bySlug[idea.Slug] = idea
-			}
+			bySlug[idea.Slug] = idea
 		}
 	}
 
