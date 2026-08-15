@@ -106,8 +106,11 @@ instead of inventing a parallel task runner.
   files are still placeholders and do not unlock PHASE-01.
 - `just check` returning OK means tree shape and acceptance consistency,
   not that research or the CLI is done.
-- When both `/usr/local/go/bin/go` and `/usr/bin/go` exist, put
-  `/usr/local/go/bin` first on `PATH`. A login shell that sourced
-  `~/.bashrc` already does this in the Cloud Agent image.
+- Distro `apt` ships `/usr/bin/go` 1.22.x. The Cloud Agent install
+  places Go 1.26 at `/usr/local/go` and symlinks `go`/`gofmt` into
+  `/usr/local/bin`, which precedes `/usr/bin` on the default `PATH`.
+  If `go version` is 1.22, you are on the distro binary — use
+  `/usr/local/bin/go` or repair the symlink. Do not reinstall Go on
+  every boot.
 - Startup dependency refresh is a no-op until `go.mod` exists; then it is
   `go mod download` only. Do not reinstall `just` or Go on every boot.
