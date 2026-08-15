@@ -4,6 +4,7 @@ filename_pattern = "EVD-{NNN}-{slug}.md"
 stage_scoped = false
 digits = 3
 required_front_matter = ["id", "title", "status", "date", "source"]
+# optional: superseded_by, supersedes (set by mycelium supersede)
 required_sections = [
   "Claim",
   "Source",

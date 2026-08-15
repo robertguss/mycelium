@@ -4,6 +4,7 @@ filename_pattern = "SPK-{NNN}-{slug}.md"
 stage_scoped = false
 digits = 3
 required_front_matter = ["id", "title", "status", "date", "decision_at_stake"]
+# optional: superseded_by, supersedes (set by mycelium supersede)
 required_sections = [
   "Method",
   "Commands and Artifacts",
