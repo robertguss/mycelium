@@ -3,7 +3,7 @@
 Structure only (DEC-005).
 Checks never grade prose or thinking quality.
 
-## Must-implement checks (22)
+## Must-implement checks (23)
 
 1. Manifest present (`mycelium.toml`) and parses; required fields valid per
    `program/contracts/manifest.md`.
@@ -53,6 +53,11 @@ Checks never grade prose or thinking quality.
 22. Rung cardinality per pack commissioning contract. RCL required H2s
     including `Retained dissent`. `SEED-DISSENT` substring rule per pack
     reconciliation contract. RCL `rung` is `council` only.
+23. Bidirectional IFF + one-to-one. If `status = "Superseded"`:
+    `superseded_by` present, same namespace, resolves, and peer `supersedes`
+    equals this ID. If `supersedes` is set: peer exists, peer
+    `status = "Superseded"`, peer `superseded_by` equals this ID. At most
+    one inbound `superseded_by` per NEW. Binds in Slice 2.
 
 ## Lift timing
 
@@ -74,6 +79,16 @@ Items 18–22 land by PHASE-04 slice:
 | PHASE-04 Slice 3 | Check calls `internal/ladder`. Items 20–22 IFF / hash / cardinality / `SEED-DISSENT` bind. |
 | PHASE-04 Slice 4 | Skills + adapters; no new check rule. |
 | PHASE-04 Slice 5 | MS-401 matrix fixtures in `go test ./...` **are** the gate. |
+
+PHASE-05 slices 1–5 (item 23 + related check/status deltas):
+
+| Slice | Check / status behavior |
+| --- | --- |
+| PHASE-05 Slice 1 | Schema enum + optional keys land. Parsers exist. **No** CLI. **No** item 23 bind. Item 8 regex **not** yet changed (a hand-written `supersede` log line would still fail check — do not write one in Slice 1 fixtures). |
+| PHASE-05 Slice 2 | Command + item 8 + item 23 + item 6 link bind. Happy DEC pair + refuse table. |
+| PHASE-05 Slice 3 | Item 1 G1 rule. `status` / `status --all` tolerance. G0–G3. |
+| PHASE-05 Slice 4 | No new check item. CHANGELOG + release script + checksum tests. |
+| PHASE-05 Slice 5 | MS-501 matrix harness in `internal/clitest` runs every PHASE-05 acceptance row. |
 
 Do not require a wake brief on instances that never simmered. Do not grade
 brief prose. Do not require N artifacts. Do not add `reviews/` to the
@@ -109,6 +124,14 @@ always-allowed top-level list this slice (Slice 1 binds that).
 | Add `council` / `replicate` / `ladder` to the log-op regex | **No.** |
 | Fail a lone CMP (no RPT yet) | **No.** WIP is legal. |
 | Treat OQ-006 as a council | **No.** |
+| Change `state` because an artifact was superseded | **No.** |
+| Require a new H2 on OLD or NEW | **No.** |
+| Grade OLD/NEW prose | **No.** DEC-005. |
+| Fail G3 as a *status* fixture | **No.** G3 is status-only. |
+| Fail G1 because the *binary* contract requires `github_repo` | **No.** Instance contract wins. |
+| Add `handoff` / `upgrade` / `council` to the log-op regex | **No.** |
+| Call network / `gh` / read `GH_TOKEN` | **No.** |
+| Treat Install SLO or a GitHub Release as a check | **No.** |
 
 ## Teaching errors
 
