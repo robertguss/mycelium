@@ -3,9 +3,9 @@ name: mycelium-cli
 description: >
   Operate a Mycelium idea instance with the mycelium CLI: scaffold, generate
   registered artifacts, check conformance, change tier, lifecycle transitions,
-  wake, index, status, publish, and supersede. Use when working inside an idea
-  repo that has mycelium.toml, or when the human asks for mycelium commands.
-  Does not commit to git unless the human asks.
+  wake, handoff, index, status, publish, and supersede. Use when working inside
+  an idea repo that has mycelium.toml, or when the human asks for mycelium
+  commands. Does not commit to git unless the human asks.
 ---
 
 # Mycelium CLI
@@ -21,6 +21,7 @@ description: >
 | `mycelium tier <tier> [--dir PATH]` | Set tier; emit newly required dirs only; never delete |
 | `mycelium state <target> [--dir PATH] [--revisit …]` | Lifecycle transition |
 | `mycelium wake [--dir PATH]` | Simmering → exploring ritual (writes re-entry brief) |
+| `mycelium handoff [--dir PATH]` | Write `handoff/PACKET.md` then set `state = handed-off` (from `clarified` only) |
 | `mycelium status [--dir PATH]` | Single-instance status |
 | `mycelium status --all [--offline]` | Portfolio listing (local + GitHub when available) |
 | `mycelium index [--dir PATH]` | Rebuild `index.md` |
@@ -28,6 +29,21 @@ description: >
 | `mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]` | Artifact supersede (bidirectional cross-links + log line) |
 
 Exit `0` on success, `1` on failure.
+
+## Handoff
+
+`mycelium handoff [--dir PATH]` writes the implementation packet at
+`handoff/PACKET.md`, then sets `state = handed-off`. Legal only from
+`clarified`. `handed-off` is terminal except `archived`.
+
+Refuse cases (teaching error, exit 1, no writes):
+
+- not `clarified` — legal only from `clarified`
+- `handoff/PACKET.md` already exists — use `mycelium state handed-off` instead
+- `mycelium state handed-off` without a passing packet — run `mycelium handoff` first
+
+The packet is `handoff/PACKET.md`. Do not treat v1 session-attachment manifests
+as the packet.
 
 ## Supersede
 

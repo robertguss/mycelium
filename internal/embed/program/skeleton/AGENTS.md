@@ -17,11 +17,20 @@ Use the `mycelium` CLI for scaffolded operations:
 - `mycelium index` — rebuild `index.md`
 - `mycelium publish` — create/update the GitHub repo for this idea
 - `mycelium supersede <OLD-ID> --by <NEW-ID>` — supersede one artifact with another
+- `mycelium handoff` — write `handoff/PACKET.md` then set `state = handed-off` (legal only from `clarified`)
+
+Idea handoff is `mycelium handoff`. Use `mycelium state handed-off` only if the packet already exists.
 
 Artifact supersede is `mycelium supersede` (front-matter cross-links + log line).
 It does not change idea `state`. Idea lifecycle stays `mycelium state` / `wake`.
 
 Global exit codes: `0` success, `1` failure. Teaching errors go to stderr.
+
+## Implementation systems
+
+The isolated implementer receives **ONLY** `handoff/`. No chat history. No instance source beyond the packet. Default system is **pstack/poteto-mode**. `manual` (read the packet, implement, run `handoff/acceptance/`) is the floor and always legal. Do not fetch the rest of the instance. Do not reopen locked decisions. Do not treat v1 attachment manifests as the packet.
+
+See `program/reference/implementation-systems.md` for the packet → pstack/poteto mapping table.
 
 ## Skills
 
