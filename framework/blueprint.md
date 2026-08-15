@@ -1,6 +1,6 @@
 # Mycelium — Framework Blueprint
 
-- **Status:** Proposed — awaiting acceptance by Robert Guss
+- **Status:** Accepted — 2026-08-14 by Robert Guss
 - **Date:** 2026-08-14 (revised 2026-08-14)
 - **Revision:** 1 — applies all thirteen accepted findings of the
   [blueprint adversarial review](reviews/01-blueprint-adversarial-review.md) per
