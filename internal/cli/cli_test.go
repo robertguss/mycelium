@@ -87,18 +87,14 @@ func TestUnknownCommandTeachingError(t *testing.T) {
 }
 
 func TestPhase01NotImplementedTeachingError(t *testing.T) {
-	for _, cmd := range []string{"tier", "publish"} {
-		t.Run(cmd, func(t *testing.T) {
-			var stdout, stderr bytes.Buffer
-			code := cli.Run([]string{"mycelium", cmd}, &stdout, &stderr, cli.Deps{})
-			if code != 1 {
-				t.Fatalf("exit %d want 1", code)
-			}
-			errText := stderr.String()
-			if !strings.Contains(errText, "not implemented in this slice") {
-				t.Fatalf("stderr=%q", errText)
-			}
-		})
+	var stdout, stderr bytes.Buffer
+	code := cli.Run([]string{"mycelium", "publish"}, &stdout, &stderr, cli.Deps{})
+	if code != 1 {
+		t.Fatalf("exit %d want 1", code)
+	}
+	errText := stderr.String()
+	if !strings.Contains(errText, "not implemented in this slice") {
+		t.Fatalf("stderr=%q", errText)
 	}
 }
 

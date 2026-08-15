@@ -249,6 +249,103 @@ func TestH1ResumeRefusesClobberExistingDEC(t *testing.T) {
 	}
 }
 
+// Crash after artifact rename: dest exists, staged from gone, Done=false.
+// Resume must complete (not refuse overwrite) and clear the journal.
+func TestResumeAfterArtifactRenameCompletes(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "Resume Partial")
+	deps := fixedDeps(t, cwd)
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	rel := "decisions/DEC-001-partial-resume.md"
+	title := "Partial Resume"
+	logBytes, err := os.ReadFile(filepath.Join(inst, "log.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manBytes, err := os.ReadFile(filepath.Join(inst, "mycelium.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.Parse(manBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.UpdatedDate = "2026-08-15"
+	manOut, err := manifest.Encode(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logLine := "2026-08-15\tnew\tDEC-001\tPartial Resume"
+	newLog := append([]byte(nil), logBytes...)
+	if len(newLog) > 0 && newLog[len(newLog)-1] != '\n' {
+		newLog = append(newLog, '\n')
+	}
+	newLog = append(newLog, []byte(logLine+"\n")...)
+
+	sess, err := op.Begin(inst, op.Intent{
+		Op:         "new",
+		Type:       "decision",
+		Title:      title,
+		OriginalID: "DEC-001",
+		LogLine:    logLine,
+		Argv:       []string{"new", "decision", title, "--dir", inst},
+		OpID:       "partial-dec",
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := "+++ \nid = \"DEC-001\"\ntitle = \"Partial Resume\"\nstatus = \"proposed\"\ndate = \"2026-08-15\"\n+++\n\n## Context\n\nx\n\n## Decision\n\nx\n\n## Consequences\n\nx\n"
+	if err := sess.Stage([]op.Staged{
+		{RelTo: rel, Content: []byte(body)},
+		{RelTo: "log.md", Content: newLog},
+		{RelTo: "mycelium.toml", Content: manOut},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	j := sess.Journal()
+	from0 := filepath.Join(inst, filepath.FromSlash(j.Renames[0].From))
+	to0 := filepath.Join(inst, filepath.FromSlash(j.Renames[0].To))
+	if err := os.MkdirAll(filepath.Dir(to0), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(from0, to0); err != nil {
+		t.Fatal(err)
+	}
+	j.Renames[0].Done = false
+	if err := journal.Save(inst, j); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	code, out, errText := runNew(t, deps, "new", "decision", title, "--dir", inst)
+	if code != 0 {
+		t.Fatalf("resume exit %d stderr=%q", code, errText)
+	}
+	if !strings.Contains(out, "created "+rel) {
+		t.Fatalf("stdout=%q", out)
+	}
+	if _, err := os.Stat(filepath.Join(inst, ".mycelium", "journal.json")); !os.IsNotExist(err) {
+		t.Fatalf("journal should be cleared after resume (err=%v)", err)
+	}
+	got, err := os.ReadFile(to0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "Partial Resume") {
+		t.Fatalf("artifact missing: %q", got)
+	}
+	logAfter, err := os.ReadFile(filepath.Join(inst, "log.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(logAfter), logLine) {
+		t.Fatalf("log missing line: %q", logAfter)
+	}
+}
+
 // H2: leftover original_id + existing dest + empty renames → refuse before Stage.
 func TestH2ResumeEmptyRenamesRefusesExistingDest(t *testing.T) {
 	cwd := t.TempDir()

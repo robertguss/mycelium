@@ -16,6 +16,7 @@ import (
 	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/scaffold"
 	"github.com/robertguss/mycelium/internal/teach"
+	"github.com/robertguss/mycelium/internal/tiercmd"
 	"github.com/robertguss/mycelium/internal/version"
 )
 
@@ -26,9 +27,10 @@ Usage:
   mycelium new idea <name> [--dir PATH] [--offline] [--publish] [--tier focused|standard|high-assurance]
   mycelium new <type> "<Title>" [--dir PATH]
   mycelium check [--dir PATH] [--abort-journal]
+  mycelium tier <tier> [--dir PATH]
   mycelium -h | --help
 
-PHASE-01 commands (later slices): tier, publish
+PHASE-01 commands (later slices): publish
 `
 
 // Deps are injectable collaborators for hermetic tests.
@@ -77,12 +79,14 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return cmdNew(args[1:], stdout, stderr, deps)
 	case "check":
 		return cmdCheck(args[1:], stdout, stderr, deps)
-	case "tier", "publish":
+	case "tier":
+		return cmdTier(args[1:], stdout, stderr, deps)
+	case "publish":
 		return teach.Write(stderr,
 			fmt.Sprintf("%q is not implemented in this slice", cmd),
 			"phase-01-slice-order",
 			"framework/phases/PHASE-01-implementation-brief.md",
-			"use mycelium version, mycelium new idea --offline, or mycelium check; wait for the slice that ships this command",
+			"use mycelium version, mycelium new idea --offline, mycelium check, or mycelium tier; wait for the slice that ships this command",
 		)
 	default:
 		return teach.Write(stderr,
@@ -206,6 +210,42 @@ func cmdNewIdea(args []string, stdout, stderr io.Writer, deps Deps) int {
 	})
 }
 
+func cmdTier(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseTierFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, "Usage: mycelium tier <tier> [--dir PATH]")
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"usage: mycelium tier <tier> [--dir PATH] where <tier> is focused, standard, or high-assurance",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	argv := append([]string{"tier"}, args...)
+	return tiercmd.Run(tiercmd.Options{
+		Tier: opts.tier,
+		Dir:  opts.dir,
+		Cwd:  cwd,
+		Argv: argv,
+	}, tiercmd.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
 func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseCheckFlags(args)
 	if err == errHelp {
@@ -305,6 +345,43 @@ type newTypeFlags struct {
 type checkFlags struct {
 	dir   string
 	abort bool
+}
+
+type tierFlags struct {
+	tier string
+	dir  string
+}
+
+func parseTierFlags(args []string) (tierFlags, error) {
+	var out tierFlags
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			positionals = append(positionals, a)
+		}
+	}
+	if len(positionals) == 0 {
+		return out, fmt.Errorf("tier requires a tier name")
+	}
+	if len(positionals) > 1 {
+		return out, fmt.Errorf("unexpected argument %q", positionals[1])
+	}
+	out.tier = positionals[0]
+	return out, nil
 }
 
 func parseNewTypeFlags(args []string) (newTypeFlags, error) {

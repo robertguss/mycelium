@@ -399,6 +399,8 @@ func ReplaceTokens(tpl, id, title, slugStr, date string) string {
 
 // refuseOverwriteUnlessDone refuses when dest exists and the matching rename
 // is not already Done (H2: resume must not clobber a user file).
+// Filesystem already-Done (to exists, staged from gone, Done=false) is treated
+// as Done so crash-after-artifact-rename can resume via Commit.
 func refuseOverwriteUnlessDone(root, relPath string, renames []journal.Rename) error {
 	dest := filepath.Join(root, filepath.FromSlash(relPath))
 	_, err := os.Stat(dest)
@@ -411,7 +413,14 @@ func refuseOverwriteUnlessDone(root, relPath string, renames []journal.Rename) e
 	want := filepath.ToSlash(filepath.Clean(filepath.FromSlash(relPath)))
 	for _, r := range renames {
 		got := filepath.ToSlash(filepath.Clean(filepath.FromSlash(r.To)))
-		if got == want && r.Done {
+		if got != want {
+			continue
+		}
+		if r.Done {
+			return nil
+		}
+		from := filepath.Join(root, filepath.FromSlash(r.From))
+		if _, ferr := os.Stat(from); os.IsNotExist(ferr) {
 			return nil
 		}
 	}
