@@ -13,6 +13,7 @@ import (
 
 	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
+	"github.com/robertguss/mycelium/internal/indexmd"
 	"github.com/robertguss/mycelium/internal/lock"
 	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
@@ -283,7 +284,14 @@ func buildStaged(
 		return nil, fmt.Errorf("cannot encode manifest: %w", err)
 	}
 	newLog := appendLogLine(logBytes, logLine)
+	idx, err := indexmd.Load(root)
+	if err != nil {
+		return nil, fmt.Errorf("cannot build index.md: %w", err)
+	}
+	idx.Tier = want
+	idx.LogLines = append(idx.LogLines, logLine)
 	files = append(files,
+		op.Staged{RelTo: "index.md", Content: indexmd.Render(idx)},
 		op.Staged{RelTo: "log.md", Content: newLog},
 		op.Staged{RelTo: "mycelium.toml", Content: manOut},
 	)

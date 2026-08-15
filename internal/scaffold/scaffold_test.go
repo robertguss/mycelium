@@ -42,6 +42,7 @@ func TestNewIdeaOfflineScaffold(t *testing.T) {
 	mustExist(t, inst, "README.md")
 	mustExist(t, inst, "mycelium.toml")
 	mustExist(t, inst, "log.md")
+	mustExist(t, inst, "index.md")
 	mustExist(t, inst, "CONTEXT.md")
 	mustExist(t, inst, "AGENTS.md")
 	mustExist(t, inst, ".gitignore")
@@ -49,6 +50,15 @@ func TestNewIdeaOfflineScaffold(t *testing.T) {
 	mustExist(t, inst, "program/README.md")
 	mustExist(t, inst, "program/tiers/focused.toml")
 
+	indexBody, err := os.ReadFile(filepath.Join(inst, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, h2 := range []string{"## State", "## Artifacts", "## Log tail", "## Wake"} {
+		if !strings.Contains(string(indexBody), h2) {
+			t.Fatalf("index.md missing %s:\n%s", h2, indexBody)
+		}
+	}
 	for _, forbidden := range []string{
 		"framework", "Justfile", "scripts", "research-program.toml",
 		"cmd", "internal", "go.mod", "go.sum",

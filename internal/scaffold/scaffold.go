@@ -14,6 +14,7 @@ import (
 	"github.com/robertguss/mycelium/internal/clock"
 	myceliumembed "github.com/robertguss/mycelium/internal/embed"
 	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/indexmd"
 	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
@@ -433,8 +434,20 @@ func buildFiles(ideaName, ideaSlug, tier, date, cliVersion string) ([]op.Staged,
 		})
 	}
 
-	logBody := "# Log\n\n" + logfmt.Line(date, "scaffold", "-", ideaName) + "\n"
-	files = append(files, op.Staged{RelTo: "log.md", Content: []byte(logBody)})
+	logLine := logfmt.Line(date, "scaffold", "-", ideaName)
+	logBody := "# Log\n\n" + logLine + "\n"
+	indexBytes := indexmd.Render(indexmd.Instance{
+		IdeaName: ideaName,
+		State:    "spark",
+		Tier:     tier,
+		Counts:   indexmd.ZeroCounts(),
+		LogLines: []string{logLine},
+		Wake:     "none",
+	})
+	files = append(files,
+		op.Staged{RelTo: "index.md", Content: indexBytes},
+		op.Staged{RelTo: "log.md", Content: []byte(logBody)},
+	)
 
 	m := manifest.Manifest{
 		SchemaVersion:         1,

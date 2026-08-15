@@ -48,6 +48,7 @@ var (
 var alwaysAllowedTop = map[string]struct{}{
 	"README.md": {}, "mycelium.toml": {}, "log.md": {}, "CONTEXT.md": {},
 	"AGENTS.md": {}, ".gitignore": {}, "LICENSE": {}, "CHANGELOG.md": {},
+	"index.md": {}, "briefs": {},
 	".agents": {}, ".mycelium": {}, ".git": {}, ".github": {}, "program": {},
 }
 
@@ -121,6 +122,7 @@ func Run(root string) Result {
 
 	checkTierBinds(root, m.Tier, add)
 	checkTopLevel(root, m, homes, add)
+	checkIndex(root, add)
 
 	index := buildArtifactIndex(root, schemas, &r, add)
 	checkFrontMatterAndSections(root, index, schemaByHome, add)
@@ -243,8 +245,12 @@ func checkTierBinds(root, tier string, add func(string, string, string, string))
 				add(fmt.Sprintf("missing bound directory %s/", dir), "tier-binds", "program/contracts/conformance.md", "restore "+dir+"/ or raise tier after emit")
 			}
 		default:
+			fix := "restore " + bind
+			if bind == "index.md" {
+				fix = "mycelium index"
+			}
 			if _, err := os.Stat(filepath.Join(root, bind)); err != nil {
-				add(fmt.Sprintf("missing bound path %s", bind), "tier-binds", "program/contracts/conformance.md", "restore "+bind)
+				add(fmt.Sprintf("missing bound path %s", bind), "tier-binds", "program/contracts/conformance.md", fix)
 			}
 		}
 	}
@@ -282,6 +288,50 @@ func checkTopLevel(root string, m manifest.Manifest, homes map[string]struct{}, 
 			"program/contracts/conformance.md",
 			fmt.Sprintf("remove %s or declare [[deviations]] convention = \"extra-top-level:%s\"", name, name),
 		)
+	}
+}
+
+func checkIndex(root string, add func(string, string, string, string)) {
+	b, err := os.ReadFile(filepath.Join(root, "index.md"))
+	if err != nil {
+		add(
+			"index.md missing or unreadable",
+			"index",
+			"program/contracts/index.md",
+			"mycelium index",
+		)
+		return
+	}
+	text := string(b)
+	hasH1 := false
+	for _, line := range strings.Split(text, "\n") {
+		trim := strings.TrimRight(line, "\r")
+		if strings.HasPrefix(trim, "# ") && !strings.HasPrefix(trim, "## ") {
+			hasH1 = true
+			break
+		}
+	}
+	if !hasH1 {
+		add(
+			"index.md missing H1",
+			"index",
+			"program/contracts/index.md",
+			"mycelium index",
+		)
+	}
+	present := map[string]struct{}{}
+	for _, m := range h2RE.FindAllStringSubmatch(text, -1) {
+		present[m[1]] = struct{}{}
+	}
+	for _, sec := range []string{"State", "Artifacts", "Log tail", "Wake"} {
+		if _, ok := present[sec]; !ok {
+			add(
+				fmt.Sprintf("index.md missing required H2 %q", sec),
+				"index",
+				"program/contracts/index.md",
+				"mycelium index",
+			)
+		}
 	}
 }
 
@@ -488,8 +538,16 @@ func checkLinks(root string, arts []artifactFile, homeByNS map[string]string, ad
 		}
 	}
 
-	for _, rel := range []string{"log.md", "README.md", "CONTEXT.md", "AGENTS.md"} {
+	for _, rel := range []string{"log.md", "README.md", "CONTEXT.md", "AGENTS.md", "index.md"} {
 		scan(rel)
+	}
+	if entries, err := os.ReadDir(filepath.Join(root, "briefs")); err == nil {
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+			scan(filepath.ToSlash(filepath.Join("briefs", e.Name())))
+		}
 	}
 	for _, a := range arts {
 		scan(a.Rel)

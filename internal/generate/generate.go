@@ -14,6 +14,7 @@ import (
 	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/idpath"
+	"github.com/robertguss/mycelium/internal/indexmd"
 	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
@@ -355,8 +356,21 @@ func Run(opts Options, deps Deps) int {
 			)
 		}
 		newLog := appendLogLine(logBytes, sess.Journal().LogLine)
+		idx, err := indexmd.Load(root)
+		if err != nil {
+			rollbackOrClose(sess)
+			return teach.Write(deps.Stderr,
+				fmt.Sprintf("cannot build index.md: %v", err),
+				"index",
+				"program/contracts/index.md",
+				"restore mycelium.toml and log.md, then retry",
+			)
+		}
+		idx.Inc(sch.Namespace)
+		idx.LogLines = append(idx.LogLines, sess.Journal().LogLine)
 		files := []op.Staged{
 			{RelTo: relPath, Content: []byte(body)},
+			{RelTo: "index.md", Content: indexmd.Render(idx)},
 			{RelTo: "log.md", Content: newLog},
 			{RelTo: "mycelium.toml", Content: manOut},
 		}

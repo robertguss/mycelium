@@ -192,13 +192,13 @@ func TestTierFiles(t *testing.T) {
 		{
 			file: "focused.toml", name: "focused",
 			emits: []string{},
-			binds: []string{"manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/"},
+			binds: []string{"manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/", "index.md"},
 		},
 		{
 			file: "standard.toml", name: "standard",
 			emits: []string{"decisions/", "assumptions/", "evidence/", "questions/", "risks/"},
 			binds: []string{
-				"manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/",
+				"manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/", "index.md",
 				"decisions/", "assumptions/", "evidence/", "questions/", "risks/",
 			},
 		},
@@ -210,7 +210,7 @@ func TestTierFiles(t *testing.T) {
 				"phases/", "milestones/",
 			},
 			binds: []string{
-				"manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/",
+				"manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/", "index.md",
 				"decisions/", "assumptions/", "evidence/", "questions/", "risks/",
 				"spikes/", "findings/", "recommendations/", "requirements/",
 				"phases/", "milestones/",
@@ -248,6 +248,7 @@ func TestSkeletonAndSkillExist(t *testing.T) {
 		"program/skeleton/CONTEXT.md",
 		"program/skeleton/AGENTS.md",
 		"program/skeleton/gitignore",
+		"program/skeleton/index.md",
 		"program/skills/mycelium-cli/SKILL.md",
 	}
 	for _, rel := range paths {

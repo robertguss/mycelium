@@ -13,6 +13,7 @@ import (
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
 	"github.com/robertguss/mycelium/internal/generate"
+	"github.com/robertguss/mycelium/internal/indexcmd"
 	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/publish"
 	"github.com/robertguss/mycelium/internal/scaffold"
@@ -30,6 +31,7 @@ Usage:
   mycelium check [--dir PATH] [--abort-journal]
   mycelium tier <tier> [--dir PATH]
   mycelium publish [--dir PATH]
+  mycelium index [--dir PATH]
   mycelium -h | --help
 `
 
@@ -83,6 +85,8 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return cmdTier(args[1:], stdout, stderr, deps)
 	case "publish":
 		return cmdPublish(args[1:], stdout, stderr, deps)
+	case "index":
+		return cmdIndex(args[1:], stdout, stderr, deps)
 	default:
 		return teach.Write(stderr,
 			fmt.Sprintf("unknown command %q", cmd),
@@ -285,6 +289,41 @@ func cmdPublish(args []string, stdout, stderr io.Writer, deps Deps) int {
 	return out.Code
 }
 
+func cmdIndex(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseIndexFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, "Usage: mycelium index [--dir PATH]")
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"usage: mycelium index [--dir PATH]",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	argv := append([]string{"index"}, args...)
+	return indexcmd.Run(indexcmd.Options{
+		Dir:  opts.dir,
+		Cwd:  cwd,
+		Argv: argv,
+	}, indexcmd.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
 func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseCheckFlags(args)
 	if err == errHelp {
@@ -390,6 +429,10 @@ type publishFlags struct {
 	dir string
 }
 
+type indexFlags struct {
+	dir string
+}
+
 type tierFlags struct {
 	tier string
 	dir  string
@@ -485,6 +528,30 @@ func parseCheckFlags(args []string) (checkFlags, error) {
 
 func parsePublishFlags(args []string) (publishFlags, error) {
 	var out publishFlags
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			return out, fmt.Errorf("unexpected argument %q", a)
+		}
+	}
+	return out, nil
+}
+
+func parseIndexFlags(args []string) (indexFlags, error) {
+	var out indexFlags
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
