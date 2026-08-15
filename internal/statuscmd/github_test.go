@@ -394,3 +394,110 @@ func TestRunAllRemoteArchivedHiddenUnlessFlag(t *testing.T) {
 		t.Fatalf("shown summary: %q", shown)
 	}
 }
+
+func TestRunAllTopicsFallback(t *testing.T) {
+	ideas := t.TempDir()
+	writeFixtureDir(t, filepath.Join(ideas, "topic-local"), "topic-local", "spark", "focused", "", "")
+
+	manifestB64 := base64.StdEncoding.EncodeToString([]byte(`schema_version = 1
+idea_name = "Topic Idea"
+slug = "topic-idea"
+state = "exploring"
+tier = "focused"
+methodology_version = "2.0.0"
+generated_by_cli_version = "0.1.0-dev"
+created_date = "2026-08-01"
+updated_date = "2026-08-01"
+revisit = ""
+github_repo = "robertguss/topic-idea"
+`))
+
+	fake := &execrun.Fake{
+		Paths: map[string]string{"gh": "/usr/bin/gh"},
+		RunFunc: func(ctx context.Context, name string, args []string, opts execrun.RunOpts) (execrun.Result, error) {
+			joined := strings.Join(args, " ")
+			switch {
+			case joined == "api user --jq .login":
+				return execrun.Result{Stdout: []byte("robertguss\n")}, nil
+			case strings.HasPrefix(joined, "search repos topic:idea user:robertguss"):
+				return execrun.Result{ExitCode: 1}, nil
+			case strings.Contains(joined, "search repos --owner robertguss --topic idea"):
+				return execrun.Result{ExitCode: 1}, nil
+			case strings.HasPrefix(joined, "repo list robertguss"):
+				return execrun.Result{Stdout: []byte(`[
+  {"name":"topic-idea","url":"https://github.com/robertguss/topic-idea","isArchived":false},
+  {"name":"no-topic","url":"https://github.com/robertguss/no-topic","isArchived":false}
+]`)}, nil
+			case joined == "api repos/robertguss/topic-idea/topics":
+				return execrun.Result{Stdout: []byte(`{"names":["idea","research"]}`)}, nil
+			case joined == "api repos/robertguss/no-topic/topics":
+				return execrun.Result{Stdout: []byte(`{"names":["misc"]}`)}, nil
+			case joined == "api repos/robertguss/topic-idea/contents/mycelium.toml --jq .content":
+				return execrun.Result{Stdout: []byte(manifestB64)}, nil
+			default:
+				return execrun.Result{ExitCode: 1, Stderr: []byte("unexpected: " + joined)}, nil
+			}
+		},
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := statuscmd.Run(statuscmd.Options{
+		All: true, Root: ideas, Cwd: t.TempDir(),
+	}, statuscmd.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+		Runner:    fake,
+		LookupEnv: func(string) string { return "" },
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "partial:") {
+		t.Fatalf("want complete via topics fallback: %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "topic-idea\texploring") {
+		t.Fatalf("missing topic-idea: %q", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "no-topic\t") {
+		t.Fatalf("non-idea repo listed: %q", stdout.String())
+	}
+}
+
+func TestParseSearchReposOwnerFromURL(t *testing.T) {
+	ideas := t.TempDir()
+	fake := &execrun.Fake{
+		Paths: map[string]string{"gh": "/usr/bin/gh"},
+		RunFunc: func(ctx context.Context, name string, args []string, opts execrun.RunOpts) (execrun.Result, error) {
+			joined := strings.Join(args, " ")
+			switch {
+			case joined == "api user --jq .login":
+				return execrun.Result{Stdout: []byte("robertguss\n")}, nil
+			case strings.HasPrefix(joined, "search repos topic:idea"):
+				return execrun.Result{Stdout: []byte(`[
+  {"name":"url-owner","url":"https://github.com/from-url/url-owner","isArchived":false,"owner":{"login":""}}
+]`)}, nil
+			case strings.Contains(joined, "/contents/mycelium.toml"):
+				return execrun.Result{ExitCode: 1}, nil
+			default:
+				return execrun.Result{ExitCode: 1}, nil
+			}
+		},
+	}
+	var stdout, stderr bytes.Buffer
+	code := statuscmd.Run(statuscmd.Options{
+		All: true, Root: ideas, Cwd: t.TempDir(),
+	}, statuscmd.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		Stdout:    &stdout,
+		Stderr:    &stderr,
+		Runner:    fake,
+		LookupEnv: func(string) string { return "" },
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "url-owner\tunread\t-\t-\tremote\tfrom-url/url-owner") {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
+}

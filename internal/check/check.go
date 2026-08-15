@@ -99,7 +99,8 @@ func Run(root string) Result {
 		add("mycelium.toml missing or unreadable", "manifest", "program/contracts/manifest.md", "run mycelium new idea --offline or restore mycelium.toml")
 		return r
 	}
-	m, err := manifest.Parse(mb)
+	required := manifest.RequiredKeysForInstance(root)
+	m, err := manifest.ParseWithRequired(mb, required)
 	if err != nil {
 		add(fmt.Sprintf("mycelium.toml invalid: %v", err), "manifest", "program/contracts/manifest.md", "fix mycelium.toml required fields and values")
 		return r

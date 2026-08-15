@@ -1138,3 +1138,69 @@ rung = "council"
 	b.WriteString("## Retained dissent\n\n" + retained + "\n")
 	return b.String()
 }
+
+func TestCheckG1MissingGithubRepoWithFrozenContract(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Legacy One")
+	tomlPath := filepath.Join(root, "mycelium.toml")
+	b, err := os.ReadFile(tomlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(b), "\n")
+	var kept []string
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "github_repo") {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if err := os.WriteFile(tomlPath, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	contract := filepath.Join(root, "program", "contracts", "manifest.md")
+	md, err := os.ReadFile(contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Drop the github_repo row from the Required fields table.
+	var out []string
+	for _, line := range strings.Split(string(md), "\n") {
+		if strings.Contains(line, "`github_repo`") {
+			continue
+		}
+		out = append(out, line)
+	}
+	if err := os.WriteFile(contract, []byte(strings.Join(out, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("G1 check should pass with frozen contract omitting github_repo: %v", r.Findings)
+	}
+}
+
+func TestCheckG3UnknownKeyFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Legacy Extra")
+	tomlPath := filepath.Join(root, "mycelium.toml")
+	b, err := os.ReadFile(tomlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tomlPath, append(b, []byte("legacy_note = \"append-only\"\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("G3 check must fail on unknown top-level key (status-only golden)")
+	}
+	found := false
+	for _, f := range r.Findings {
+		if strings.Contains(f.What, "unknown") || strings.Contains(f.What, "legacy_note") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("want unknown-key finding, got %v", r.Findings)
+	}
+}

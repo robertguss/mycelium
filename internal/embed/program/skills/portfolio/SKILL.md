@@ -14,7 +14,8 @@ Cross-idea survey.
 
 1. `mycelium status --all` (pass `--offline` when hermetic / no `gh`)
 2. Interpret `partial: local-only (...)` as incomplete — do not invent remote ideas
-3. Do not create repos. Do not publish. Do not mutate.
+3. `status --all` may print `partial: legacy-manifest` and still list other ideas
+4. Do not create repos. Do not publish. Do not mutate.
 
 ## Do not
 

@@ -23,6 +23,8 @@ the gate. Arvo accepts the phase.
 | MS-501-G3 | unknown key: status-only golden | A-S5 / A-S3 | Engineering |
 | MS-501-REL | checksummed binaries + CHANGELOG heading | A-S5 / A-S4 | Engineering |
 
+**G3 note:** MS-501-G3 / A-S3 treat G3 as a status-only golden — `mycelium status` exit 0 and `mycelium check` exit 1; do not assert check exit 0 on G3.
+
 No Install-SLO-gate row. No GitHub-Release-gate row. No Actions-job row.
 Quality should refuse a PR that adds an Actions job as the MS-501 gate.
 Quality should not refuse a missing PHASE-05 workflow.
