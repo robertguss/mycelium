@@ -45,7 +45,8 @@ Use `mycelium …`. The only Just recipe is:
 just release version=…
 ```
 
-That wraps `scripts/release.sh`. There is no `just init`.
+That wraps `scripts/release.sh`. Do not restore ADRP bootstrap recipes
+(`init` / `status` / `check`).
 
 ## Authority
 
