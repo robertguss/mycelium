@@ -18,6 +18,7 @@ import (
 	"github.com/robertguss/mycelium/internal/publish"
 	"github.com/robertguss/mycelium/internal/scaffold"
 	"github.com/robertguss/mycelium/internal/statecmd"
+	"github.com/robertguss/mycelium/internal/statuscmd"
 	"github.com/robertguss/mycelium/internal/teach"
 	"github.com/robertguss/mycelium/internal/tiercmd"
 	"github.com/robertguss/mycelium/internal/version"
@@ -35,6 +36,7 @@ Usage:
   mycelium index [--dir PATH]
   mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]
   mycelium wake [--dir PATH]
+  mycelium status [--dir PATH]
   mycelium -h | --help
 `
 
@@ -94,6 +96,8 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return cmdState(args[1:], stdout, stderr, deps)
 	case "wake":
 		return cmdWake(args[1:], stdout, stderr, deps)
+	case "status":
+		return cmdStatus(args[1:], stdout, stderr, deps)
 	default:
 		return teach.Write(stderr,
 			fmt.Sprintf("unknown command %q", cmd),
@@ -419,6 +423,43 @@ Examples:
 	})
 }
 
+func cmdStatus(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseStatusFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, `Usage: mycelium status [--dir PATH]
+
+Examples:
+  mycelium status
+  mycelium status --dir ./my-idea`)
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"program/contracts/status.md",
+			"usage: mycelium status [--dir PATH]",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	return statuscmd.Run(statuscmd.Options{
+		Dir: opts.dir,
+		Cwd: cwd,
+	}, statuscmd.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
 func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseCheckFlags(args)
 	if err == errHelp {
@@ -537,6 +578,15 @@ type stateFlags struct {
 
 type wakeFlags struct {
 	dir string
+}
+
+type statusFlags struct {
+	dir      string
+	all      bool
+	root     string
+	hasRoot  bool
+	offline  bool
+	archived bool
 }
 
 type tierFlags struct {
@@ -742,6 +792,55 @@ func parseWakeFlags(args []string) (wakeFlags, error) {
 		default:
 			return out, fmt.Errorf("unexpected argument %q", a)
 		}
+	}
+	return out, nil
+}
+
+func parseStatusFlags(args []string) (statusFlags, error) {
+	var out statusFlags
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--all":
+			out.all = true
+		case a == "--offline":
+			out.offline = true
+		case a == "--archived":
+			out.archived = true
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case a == "--root":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--root requires a path")
+			}
+			i++
+			out.root = args[i]
+			out.hasRoot = true
+		case strings.HasPrefix(a, "--root="):
+			out.root = strings.TrimPrefix(a, "--root=")
+			out.hasRoot = true
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			return out, fmt.Errorf("unexpected argument %q", a)
+		}
+	}
+	if out.all {
+		return out, fmt.Errorf("status --all is Slice 5")
+	}
+	if out.hasRoot {
+		return out, fmt.Errorf("--root requires --all")
+	}
+	if out.archived {
+		return out, fmt.Errorf("status --archived requires --all")
 	}
 	return out, nil
 }
