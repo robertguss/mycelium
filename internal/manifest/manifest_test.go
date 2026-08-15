@@ -212,3 +212,33 @@ func TestParseRangeErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestEncodeRoundTrip(t *testing.T) {
+	m := manifest.Manifest{
+		SchemaVersion:         1,
+		IdeaName:              "Garden lighting",
+		Slug:                  "garden-lighting",
+		State:                 "spark",
+		Tier:                  "focused",
+		MethodologyVersion:    "2.0.0",
+		GeneratedByCLIVersion: "0.1.0-dev",
+		CreatedDate:           "2026-08-14",
+		UpdatedDate:           "2026-08-14",
+		Revisit:               "",
+		GithubRepo:            "",
+	}
+	b, err := manifest.Encode(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := manifest.Parse(b)
+	if err != nil {
+		t.Fatalf("parse encoded: %v\n%s", err, b)
+	}
+	if got.IdeaName != m.IdeaName || got.Slug != m.Slug || got.State != m.State {
+		t.Fatalf("round-trip mismatch: %+v", got)
+	}
+	if strings.Contains(string(b), "[identifiers]") {
+		t.Fatalf("empty identifiers should be omitted:\n%s", b)
+	}
+}

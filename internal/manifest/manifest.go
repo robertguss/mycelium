@@ -60,8 +60,8 @@ type Range struct {
 
 // Deviation is one [[deviations]] row.
 type Deviation struct {
-	Convention string
-	Reason     string
+	Convention string `toml:"convention"`
+	Reason     string `toml:"reason"`
 }
 
 // Manifest is a validated mycelium.toml.
@@ -287,6 +287,53 @@ func asInt(v any) (int, error) {
 	default:
 		return 0, ErrInvalid
 	}
+}
+
+// Encode writes a mycelium.toml document from a validated Manifest.
+// Omits empty [identifiers] and [[deviations]].
+func Encode(m Manifest) ([]byte, error) {
+	type file struct {
+		SchemaVersion         int               `toml:"schema_version"`
+		IdeaName              string            `toml:"idea_name"`
+		Slug                  string            `toml:"slug"`
+		State                 string            `toml:"state"`
+		Tier                  string            `toml:"tier"`
+		MethodologyVersion    string            `toml:"methodology_version"`
+		GeneratedByCLIVersion string            `toml:"generated_by_cli_version"`
+		CreatedDate           string            `toml:"created_date"`
+		UpdatedDate           string            `toml:"updated_date"`
+		Revisit               string            `toml:"revisit"`
+		GithubRepo            string            `toml:"github_repo"`
+		Identifiers           map[string]string `toml:"identifiers,omitempty"`
+		Deviations            []Deviation       `toml:"deviations,omitempty"`
+	}
+	out := file{
+		SchemaVersion:         m.SchemaVersion,
+		IdeaName:              m.IdeaName,
+		Slug:                  m.Slug,
+		State:                 m.State,
+		Tier:                  m.Tier,
+		MethodologyVersion:    m.MethodologyVersion,
+		GeneratedByCLIVersion: m.GeneratedByCLIVersion,
+		CreatedDate:           m.CreatedDate,
+		UpdatedDate:           m.UpdatedDate,
+		Revisit:               m.Revisit,
+		GithubRepo:            m.GithubRepo,
+	}
+	if len(m.Identifiers) > 0 {
+		out.Identifiers = make(map[string]string, len(m.Identifiers))
+		for k, rg := range m.Identifiers {
+			out.Identifiers[k] = rg.Raw
+		}
+	}
+	if len(m.Deviations) > 0 {
+		out.Deviations = append([]Deviation(nil), m.Deviations...)
+	}
+	b, err := toml.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 // ValidIdentifierKey reports whether key is findings|recommendations|requirements.
