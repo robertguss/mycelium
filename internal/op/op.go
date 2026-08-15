@@ -335,20 +335,30 @@ func Abort(root string) error {
 	}
 
 	if hasJournal {
-		for _, r := range j.Renames {
-			if r.Done {
-				continue
-			}
-			if err := validateContained(root, r.From); err != nil {
-				continue
-			}
-			from := filepath.Join(root, filepath.FromSlash(r.From))
-			_ = os.Remove(from)
+		stagedOK := false
+		stagedClean := ""
+		if j.StagedDir != "" && validateStagedDir(root, j.StagedDir) == nil {
+			stagedOK = true
+			stagedClean = filepath.Clean(filepath.FromSlash(j.StagedDir))
 		}
-		if j.StagedDir != "" {
-			if err := validateStagedDir(root, j.StagedDir); err == nil {
-				_ = os.RemoveAll(filepath.Join(root, filepath.FromSlash(j.StagedDir)))
+		if stagedOK {
+			sep := string(filepath.Separator)
+			for _, r := range j.Renames {
+				if r.Done {
+					continue
+				}
+				if err := validateContained(root, r.From); err != nil {
+					continue
+				}
+				fromClean := filepath.Clean(filepath.FromSlash(r.From))
+				if fromClean != stagedClean && !strings.HasPrefix(fromClean, stagedClean+sep) {
+					// Not under staged_dir — do not Remove (may be a dest path).
+					continue
+				}
+				from := filepath.Join(root, filepath.FromSlash(r.From))
+				_ = os.Remove(from)
 			}
+			_ = os.RemoveAll(filepath.Join(root, filepath.FromSlash(j.StagedDir)))
 		}
 		if err := journal.Remove(root); err != nil {
 			return err
@@ -364,8 +374,14 @@ func Abort(root string) error {
 }
 
 // Detect reports leftover journal and/or stale lock for check.
-// Also prunes orphan stage dirs (keeps the journal's staged_dir if present).
+// Prunes orphan stage dirs when the lock is not live (keeps the journal's
+// staged_dir if present). A live lock skips prune so another process's
+// stage is not disturbed.
 func Detect(root string) (hasJournal bool, staleLock bool, err error) {
+	info, err := lock.Inspect(root)
+	if err != nil {
+		return false, false, err
+	}
 	j, jerr := journal.Load(root)
 	keep := ""
 	if jerr == nil {
@@ -374,10 +390,8 @@ func Detect(root string) (hasJournal bool, staleLock bool, err error) {
 	} else if !errors.Is(jerr, journal.ErrNotExist) {
 		return false, false, jerr
 	}
-	pruneOrphanStages(root, keep)
-	info, err := lock.Inspect(root)
-	if err != nil {
-		return hasJournal, false, err
+	if info.State != lock.Live {
+		pruneOrphanStages(root, keep)
 	}
 	return hasJournal, info.State == lock.Stale, nil
 }

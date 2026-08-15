@@ -312,20 +312,22 @@ func buildArtifactIndex(root string, schemas []schema.Schema, r *Result, add fun
 			add(fmt.Sprintf("%s exists but is not a directory", s.Home), "id-to-path", "program/contracts/naming.md", "make "+s.Home+" a directory")
 			continue
 		}
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			add(fmt.Sprintf("cannot read %s/: %v", s.Home, err), "id-to-path", "program/contracts/naming.md", "fix permissions on "+s.Home+"/")
-			continue
-		}
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
+		err = filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
 			}
-			name := e.Name()
+			if d.IsDir() {
+				return nil
+			}
+			name := d.Name()
 			if name == "README.md" {
-				continue
+				return nil
 			}
-			rel := filepath.ToSlash(filepath.Join(s.Home, name))
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
 			id, _, err := idpath.ParsePath(rel)
 			if err != nil {
 				add(
@@ -334,12 +336,12 @@ func buildArtifactIndex(root string, schemas []schema.Schema, r *Result, add fun
 					"program/contracts/naming.md",
 					"rename to "+s.Namespace+"-<digits>-<slug>.md or remove",
 				)
-				continue
+				return nil
 			}
 			idStr, err := idpath.FormatID(id.NS, id.N)
 			if err != nil {
 				add(fmt.Sprintf("cannot format id for %s: %v", rel, err), "id-to-path", "program/contracts/naming.md", "fix the filename digits")
-				continue
+				return nil
 			}
 			if prev, ok := seen[idStr]; ok {
 				add(
@@ -352,6 +354,10 @@ func buildArtifactIndex(root string, schemas []schema.Schema, r *Result, add fun
 				seen[idStr] = rel
 			}
 			out = append(out, artifactFile{Rel: rel, Home: s.Home, ID: id, IDStr: idStr})
+			return nil
+		})
+		if err != nil {
+			add(fmt.Sprintf("cannot walk %s/: %v", s.Home, err), "id-to-path", "program/contracts/naming.md", "fix permissions on "+s.Home+"/")
 		}
 	}
 	r.Artifacts = len(out)

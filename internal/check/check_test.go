@@ -112,6 +112,75 @@ func TestIDToPathMismatch(t *testing.T) {
 	}
 }
 
+func TestNestedArtifactReported(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Nested Fail")
+	nested := filepath.Join(root, "decisions", "nested")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rel := "decisions/nested/DEC-001-x.md"
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want failure")
+	}
+	found := false
+	for _, f := range r.Findings {
+		if f.Convention == "id-to-path" && strings.Contains(f.What, rel) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("want nested id-to-path finding, got %v", r.Findings)
+	}
+}
+
+func TestAbortJournalViaCheckSurvivesInstanceFrom(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Abort Survive")
+	readme := filepath.Join(root, "README.md")
+	manifestPath := filepath.Join(root, "mycelium.toml")
+	readmeBefore, err := os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestBefore, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".mycelium", "stage", "op1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "scaffold",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".mycelium/stage/op1",
+		Argv:          []string{"new", "idea", "X"},
+		Renames: []journal.Rename{
+			{From: "README.md", To: "README.md", Done: false},
+			{From: "mycelium.toml", To: "mycelium.toml", Done: false},
+		},
+	}
+	if err := journal.Save(root, j); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := check.AbortJournal(root, &stdout); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(readme); err != nil || !bytes.Equal(b, readmeBefore) {
+		t.Fatalf("README.md changed: %q err=%v", b, err)
+	}
+	if b, err := os.ReadFile(manifestPath); err != nil || !bytes.Equal(b, manifestBefore) {
+		t.Fatalf("mycelium.toml changed: %q err=%v", b, err)
+	}
+	if _, err := journal.Load(root); !errors.Is(err, journal.ErrNotExist) {
+		t.Fatal("journal should be gone")
+	}
+}
+
 func TestLeftoverJournalFails(t *testing.T) {
 	root := scaffoldOffline(t, t.TempDir(), "Journal Fail")
 	j := &journal.Journal{
