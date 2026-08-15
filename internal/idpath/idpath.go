@@ -30,7 +30,7 @@ var (
 	ErrFormat  = errors.New("idpath: bad format")
 )
 
-// Registered types (PHASE-01). Order matches the brief catalog.
+// Registered types.
 var types = []Type{
 	{Key: "decision", NS: "DEC", Home: "decisions", Digits: 3, StageScoped: false},
 	{Key: "assumption", NS: "ASM", Home: "assumptions", Digits: 3, StageScoped: false},
@@ -43,6 +43,9 @@ var types = []Type{
 	{Key: "risk", NS: "RSK", Home: "risks", Digits: 3, StageScoped: false},
 	{Key: "phase", NS: "PHASE", Home: "phases", Digits: 2, StageScoped: false},
 	{Key: "milestone", NS: "MS", Home: "milestones", Digits: 3, StageScoped: false},
+	{Key: "commissioning", NS: "CMP", Home: "reviews/commissioning", Digits: 3, StageScoped: false},
+	{Key: "model-report", NS: "RPT", Home: "reviews/reports", Digits: 3, StageScoped: false},
+	{Key: "reconciliation", NS: "RCL", Home: "reviews/reconciliations", Digits: 3, StageScoped: false},
 }
 
 var byNS map[string]Type
@@ -142,16 +145,18 @@ func ParsePath(path string) (ID, string, error) {
 		return ID{}, "", ErrEmpty
 	}
 	path = strings.ReplaceAll(path, "\\", "/")
-	slash := strings.IndexByte(path, '/')
-	if slash <= 0 || slash == len(path)-1 {
-		return ID{}, "", fmt.Errorf("%w: %q", ErrFormat, path)
+	var t Type
+	home := ""
+	for candidateHome, candidateType := range byHome {
+		if strings.HasPrefix(path, candidateHome+"/") && len(candidateHome) > len(home) {
+			home = candidateHome
+			t = candidateType
+		}
 	}
-	home := path[:slash]
-	rest := path[slash+1:]
-	t, ok := byHome[home]
-	if !ok {
-		return ID{}, "", fmt.Errorf("%w: home %q", ErrUnknown, home)
+	if home == "" {
+		return ID{}, "", fmt.Errorf("%w: home in %q", ErrUnknown, path)
 	}
+	rest := strings.TrimPrefix(path, home+"/")
 	if !strings.HasSuffix(rest, ".md") {
 		return ID{}, "", fmt.Errorf("%w: %q", ErrFormat, path)
 	}

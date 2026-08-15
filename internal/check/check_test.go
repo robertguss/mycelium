@@ -810,3 +810,46 @@ func TestDECDissentCitingOnlyDECFails(t *testing.T) {
 		t.Fatalf("want dissent finding, got %v", r.Findings)
 	}
 }
+
+func TestUnresolvedCommissioningFrontMatterFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Pack Link")
+	dir := filepath.Join(root, "reviews", "reports")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `+++
+id = "RPT-001"
+title = "SQLite report"
+date = "2026-08-15"
+model = "fixture"
+commissioning = "CMP-999"
+rung = "second-opinion"
+adapter = "manual"
+prompt_sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++++
+
+# RPT-001 — SQLite report
+
+## Position
+
+position
+
+## Findings
+
+findings
+
+## Dissent
+
+none
+`
+	if err := os.WriteFile(filepath.Join(dir, "RPT-001-sqlite-report.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want unresolved commissioning failure")
+	}
+	if !findingHas(r.Findings, "reference CMP-999 has no file", "reviews/commissioning") {
+		t.Fatalf("want unresolved front-matter link finding, got %v", r.Findings)
+	}
+}
