@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // RunOpts configures one Run invocation.
 type RunOpts struct {
 	Dir string
-	Env []string // appended to the process environment when non-empty
+	Env []string // appended after the base environment when non-empty
 }
 
 // Result is the completed process output.
@@ -29,6 +30,33 @@ type Runner interface {
 	Run(ctx context.Context, name string, args []string, opts RunOpts) (Result, error)
 }
 
+// gitEnvKeys redirect git away from cmd.Dir when inherited.
+var gitEnvKeys = map[string]struct{}{
+	"GIT_DIR":                          {},
+	"GIT_WORK_TREE":                    {},
+	"GIT_INDEX_FILE":                   {},
+	"GIT_OBJECT_DIRECTORY":             {},
+	"GIT_COMMON_DIR":                   {},
+	"GIT_ALTERNATE_OBJECT_DIRECTORIES": {},
+}
+
+// WithoutGitOverrides drops GIT_DIR / GIT_WORK_TREE and related location keys.
+func WithoutGitOverrides(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		key, _, ok := strings.Cut(e, "=")
+		if !ok {
+			out = append(out, e)
+			continue
+		}
+		if _, drop := gitEnvKeys[key]; drop {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 // Real wraps os/exec.
 type Real struct{}
 
@@ -38,10 +66,18 @@ func (Real) LookPath(name string) (string, error) {
 }
 
 // Run implements Runner.
+// When opts.Dir is set, git location env overrides are stripped so the child
+// uses Dir instead of an inherited GIT_DIR / GIT_WORK_TREE.
 func (Real) Run(ctx context.Context, name string, args []string, opts RunOpts) (Result, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = opts.Dir
-	if len(opts.Env) > 0 {
+	switch {
+	case opts.Dir != "":
+		cmd.Env = WithoutGitOverrides(os.Environ())
+		if len(opts.Env) > 0 {
+			cmd.Env = append(cmd.Env, opts.Env...)
+		}
+	case len(opts.Env) > 0:
 		cmd.Env = append(os.Environ(), opts.Env...)
 	}
 	var stdout, stderr bytes.Buffer

@@ -279,7 +279,10 @@ func Run(opts Options, deps Deps) int {
 	}
 	_ = os.Remove(filepath.Join(target, ".mycelium"))
 
-	res, err := deps.Runner.Run(context.Background(), "git", []string{"init", "-b", "main"}, execrun.RunOpts{Dir: target})
+	res, err := deps.Runner.Run(context.Background(), "git",
+		[]string{"--git-dir=.git", "--work-tree=.", "init", "-b", "main"},
+		execrun.RunOpts{Dir: target},
+	)
 	if err != nil || res.ExitCode != 0 {
 		msg := fmt.Sprintf("git init failed: %v", err)
 		if err == nil {
@@ -289,7 +292,15 @@ func Run(opts Options, deps Deps) int {
 			msg,
 			"git-init",
 			"program/contracts/operation-protocol.md",
-			fmt.Sprintf("instance files exist at %s; run: git init -b main", displayPath),
+			fmt.Sprintf("instance files exist at %s; run: git --git-dir=.git --work-tree=. init -b main", displayPath),
+		)
+	}
+	if _, err := os.Stat(filepath.Join(target, ".git")); err != nil {
+		return teach.Write(deps.Stderr,
+			"git init reported success but instance .git is missing",
+			"git-init",
+			"program/contracts/operation-protocol.md",
+			fmt.Sprintf("instance files exist at %s; unset GIT_DIR and run: git --git-dir=.git --work-tree=. init -b main", displayPath),
 		)
 	}
 

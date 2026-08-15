@@ -2,6 +2,8 @@ package execrun_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/robertguss/mycelium/internal/execrun"
@@ -25,7 +27,6 @@ func TestFakeRecordsAndBlocksMissing(t *testing.T) {
 	if !f.Called("git") {
 		t.Fatal("git not recorded")
 	}
-	// LookPath("gh") must not count as a Run.
 	if f.Called("gh") {
 		t.Fatal("gh should not be recorded as run")
 	}
@@ -40,5 +41,38 @@ func TestRecordingWrapsInner(t *testing.T) {
 	}
 	if !inner.Called("gh") {
 		t.Fatal("inner should see gh")
+	}
+}
+
+func TestRealRunScrubsGIT_DIRWhenDirSet(t *testing.T) {
+	root := t.TempDir()
+	trap := filepath.Join(root, "trap.git")
+	work := filepath.Join(root, "work")
+	if err := os.MkdirAll(trap, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_DIR", trap)
+	t.Setenv("GIT_WORK_TREE", root)
+
+	res, err := (execrun.Real{}).Run(
+		context.Background(),
+		"git",
+		[]string{"init", "-b", "main"},
+		execrun.RunOpts{Dir: work},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ExitCode != 0 {
+		t.Fatalf("exit %d stderr=%s", res.ExitCode, res.Stderr)
+	}
+	if _, err := os.Stat(filepath.Join(work, ".git")); err != nil {
+		t.Fatalf("expected .git under Dir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(trap, "HEAD")); err == nil {
+		t.Fatal("GIT_DIR trap should not have been initialized")
 	}
 }

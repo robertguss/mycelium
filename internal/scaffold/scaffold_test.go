@@ -158,7 +158,7 @@ func TestOfflineNeverExecsGh(t *testing.T) {
 			if name == "gh" {
 				t.Fatal("gh invoked")
 			}
-			if name == "git" && len(args) >= 1 && args[0] == "init" {
+			if name == "git" && containsArg(args, "init") {
 				if err := os.MkdirAll(filepath.Join(opts.Dir, ".git"), 0o755); err != nil {
 					return execrun.Result{}, err
 				}
@@ -304,7 +304,9 @@ func assertGitRepoNoCommits(t *testing.T, dir string) {
 	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
 		t.Fatalf("not a git repo: %v", err)
 	}
+	gitEnv := execrun.WithoutGitOverrides(os.Environ())
 	cmd := exec.Command("git", "-C", dir, "rev-list", "--all")
+	cmd.Env = gitEnv
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if len(bytes.TrimSpace(out)) == 0 {
@@ -315,7 +317,9 @@ func assertGitRepoNoCommits(t *testing.T, dir string) {
 	if len(bytes.TrimSpace(out)) != 0 {
 		t.Fatalf("expected no commits, got %q", out)
 	}
-	st, err := exec.Command("git", "-C", dir, "status", "--porcelain").Output()
+	stCmd := exec.Command("git", "-C", dir, "status", "--porcelain")
+	stCmd.Env = gitEnv
+	st, err := stCmd.Output()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,4 +408,90 @@ func mustEncodeManifest(t *testing.T, ideaName, ideaSlug string) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+func containsArg(args []string, want string) bool {
+	for _, a := range args {
+		if a == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestGitInitIgnoresGIT_DIR(t *testing.T) {
+	root := t.TempDir()
+	sibling := filepath.Join(root, "hijacked.git")
+	if err := os.Mkdir(sibling, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_DIR", sibling)
+	t.Setenv("GIT_WORK_TREE", root)
+
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	var stdout, stderr bytes.Buffer
+	code := scaffold.Run(scaffold.Options{
+		Name:    "Git Dir Trap",
+		Offline: true,
+		Cwd:     root,
+		Argv:    []string{"new", "idea", "Git Dir Trap", "--offline"},
+	}, scaffold.Deps{
+		Clock:  clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
+		Runner: rec,
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	inst := filepath.Join(root, "git-dir-trap")
+	if _, err := os.Stat(filepath.Join(inst, ".git")); err != nil {
+		t.Fatalf("instance .git missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sibling, "HEAD")); err == nil {
+		t.Fatalf("git init wrote into GIT_DIR sibling %s", sibling)
+	}
+	assertGitRepoNoCommits(t, inst)
+	for _, c := range rec.Calls {
+		if c.Name != "git" {
+			continue
+		}
+		joined := strings.Join(c.Args, " ")
+		if !strings.Contains(joined, "--git-dir=.git") || !strings.Contains(joined, "--work-tree=.") {
+			t.Fatalf("git args missing explicit dir flags: %v", c.Args)
+		}
+	}
+}
+
+func TestGitInitMissingDotGitRefuses(t *testing.T) {
+	root := t.TempDir()
+	fake := &execrun.Fake{
+		RunFunc: func(ctx context.Context, name string, args []string, opts execrun.RunOpts) (execrun.Result, error) {
+			return execrun.Result{}, nil
+		},
+	}
+	var stdout, stderr bytes.Buffer
+	code := scaffold.Run(scaffold.Options{
+		Name:    "No Dot Git",
+		Offline: true,
+		Cwd:     root,
+	}, scaffold.Deps{
+		Clock:  clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
+		Runner: fake,
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if code != 1 {
+		t.Fatalf("exit %d want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "instance .git is missing") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+	inst := filepath.Join(root, "no-dot-git")
+	if _, err := os.Stat(filepath.Join(inst, "mycelium.toml")); err != nil {
+		t.Fatal("files should remain after git-init failure")
+	}
+	if _, err := os.Stat(filepath.Join(inst, ".git")); !os.IsNotExist(err) {
+		t.Fatal(".git should be absent")
+	}
 }
