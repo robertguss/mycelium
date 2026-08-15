@@ -348,21 +348,15 @@ func TestTemplatesDoNotEmitLinkKeys(t *testing.T) {
 	}
 }
 
-func TestMyceliumSupersedeStillUnknownCommand(t *testing.T) {
+func TestMyceliumSupersedeHelp(t *testing.T) {
 	t.Parallel()
-	cases := [][]string{
-		{"mycelium", "supersede"},
-		{"mycelium", "supersede", "DEC-001", "--by", "DEC-002"},
+	var stdout, stderr bytes.Buffer
+	code := cli.Run([]string{"mycelium", "supersede", "-h"}, &stdout, &stderr, cli.Deps{})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
 	}
-	for _, argv := range cases {
-		var stdout, stderr bytes.Buffer
-		code := cli.Run(argv, &stdout, &stderr, cli.Deps{})
-		if code == 0 {
-			t.Fatalf("%v: exit 0, verb must not exist yet", argv)
-		}
-		if !strings.Contains(stderr.String(), `unknown command "supersede"`) {
-			t.Fatalf("%v: stderr=%q", argv, stderr.String())
-		}
+	if !strings.Contains(stdout.String(), "mycelium supersede") {
+		t.Fatalf("stdout=%q", stdout.String())
 	}
 }
 

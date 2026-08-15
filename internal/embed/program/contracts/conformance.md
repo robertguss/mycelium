@@ -17,8 +17,8 @@ Checks never grade prose or thinking quality.
    `briefs/*.md`).
 7. Required front matter and sections per sidecar schema.
 8. Log line prefixes parseable. Ops:
-   `scaffold|new|tier|publish|check|state|wake`. Regex:
-   `^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake)\t(\S+)\t`
+   `scaffold|new|tier|publish|check|state|wake|supersede`. Regex:
+   `^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede)\t(\S+)\t`
 9. Interrupted operation: leftover journal or stale lock → teaching recovery
    (complete or `--abort-journal`).
 10. Undeclared extra top-level paths unless deviation
@@ -85,7 +85,7 @@ PHASE-05 slices 1–5 (item 23 + related check/status deltas):
 | Slice | Check / status behavior |
 | --- | --- |
 | PHASE-05 Slice 1 | Schema enum + optional keys land. Parsers exist. **No** CLI. **No** item 23 bind. Item 8 regex **not** yet changed (a hand-written `supersede` log line would still fail check — do not write one in Slice 1 fixtures). |
-| PHASE-05 Slice 2 | Command + item 8 + item 23 + item 6 link bind. Happy DEC pair + refuse table. |
+| PHASE-05 Slice 2 | Command + item 8 + item 23 + item 6 link bind. Happy DEC pair + refuse table. **Bound.** |
 | PHASE-05 Slice 3 | Item 1 G1 rule. `status` / `status --all` tolerance. G0–G3. |
 | PHASE-05 Slice 4 | No new check item. CHANGELOG + release script + checksum tests. |
 | PHASE-05 Slice 5 | MS-501 matrix harness in `internal/clitest` runs every PHASE-05 acceptance row. |

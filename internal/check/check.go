@@ -45,7 +45,7 @@ type Result struct {
 var (
 	ErrNotInstance = errors.New("check: not a mycelium instance")
 	linkRE         = regexp.MustCompile(`\b(DEC|ASM|EVD|SPK|FND|REC|REQ|OQ|RSK|PHASE|MS|CMP|RPT|RCL)-[0-9]+\b`)
-	logLineRE      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake)\t(\S+)\t`)
+	logLineRE      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake|supersede)\t(\S+)\t`)
 	dateRE         = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 	h2RE           = regexp.MustCompile(`(?m)^## (.+)$`)
 )
@@ -154,6 +154,7 @@ func Run(root string) Result {
 	logBytes := checkLog(root, add)
 	checkWakeBrief(root, logBytes, add)
 	checkLinks(root, index, homeByNS, add)
+	checkSupersedeIFF(root, index, add)
 
 	if len(r.Findings) == 0 {
 		r.OK = true
@@ -672,7 +673,7 @@ func checkLog(root string, add func(string, string, string, string)) []byte {
 				fmt.Sprintf("log.md line %d has illegal prefix", i+1),
 				"log-prefix",
 				"program/contracts/conformance.md",
-				"use YYYY-MM-DD\\t(scaffold|new|tier|publish|check|state|wake)\\t<id>\\t…",
+				"use YYYY-MM-DD\\t(scaffold|new|tier|publish|check|state|wake|supersede)\\t<id>\\t…",
 			)
 		}
 	}
@@ -776,6 +777,183 @@ func checkLinks(root string, arts []artifactFile, homeByNS map[string]string, ad
 	for _, a := range arts {
 		scan(a.Rel)
 	}
+}
+
+// checkSupersedeIFF binds conformance item 23: bidirectional IFF + one-to-one.
+func checkSupersedeIFF(root string, arts []artifactFile, add func(string, string, string, string)) {
+	type artMeta struct {
+		Rel          string
+		IDStr        string
+		NS           string
+		Status       string
+		SupersededBy string
+		Supersedes   string
+	}
+	byID := map[string]artMeta{}
+	inbound := map[string][]string{} // NEW-ID → OLD-IDs that name it in superseded_by
+
+	for _, a := range arts {
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(a.Rel)))
+		if err != nil {
+			continue
+		}
+		doc, err := metadata.Parse(b)
+		if err != nil {
+			continue
+		}
+		am := artMeta{
+			Rel:          a.Rel,
+			IDStr:        a.IDStr,
+			NS:           a.ID.NS,
+			Status:       metaString(doc.Meta, "status"),
+			SupersededBy: metaString(doc.Meta, "superseded_by"),
+			Supersedes:   metaString(doc.Meta, "supersedes"),
+		}
+		byID[a.IDStr] = am
+		if am.SupersededBy != "" {
+			peer, err := idpath.Parse(am.SupersededBy)
+			if err == nil {
+				canon, ferr := idpath.FormatID(peer.NS, peer.N)
+				if ferr == nil {
+					inbound[canon] = append(inbound[canon], a.IDStr)
+				}
+			}
+		}
+	}
+
+	for _, am := range byID {
+		if am.Status == "Superseded" {
+			if am.SupersededBy == "" {
+				add(
+					fmt.Sprintf("%s has status Superseded but missing superseded_by", am.IDStr),
+					"supersede",
+					"program/contracts/conformance.md",
+					"mycelium supersede "+am.IDStr+" --by <NEW-ID>",
+				)
+				continue
+			}
+			peerID, peerNS, err := parseLinkID(am.SupersededBy)
+			if err != nil {
+				add(
+					fmt.Sprintf("%s superseded_by %q is not a valid ID", am.IDStr, am.SupersededBy),
+					"supersede",
+					"program/contracts/conformance.md",
+					"set superseded_by to a same-namespace artifact ID",
+				)
+				continue
+			}
+			if peerNS != am.NS {
+				add(
+					fmt.Sprintf("%s superseded_by %s crosses namespace (%s vs %s)", am.IDStr, peerID, am.NS, peerNS),
+					"supersede",
+					"program/contracts/conformance.md",
+					"supersede requires the same namespace",
+				)
+				continue
+			}
+			peer, ok := byID[peerID]
+			if !ok {
+				add(
+					fmt.Sprintf("%s superseded_by %s has no file", am.IDStr, peerID),
+					"supersede",
+					"program/contracts/conformance.md",
+					"add the peer artifact or fix superseded_by",
+				)
+				continue
+			}
+			if peer.Supersedes != am.IDStr {
+				add(
+					fmt.Sprintf("%s superseded_by %s but peer supersedes is %q (want %s)", am.IDStr, peerID, peer.Supersedes, am.IDStr),
+					"supersede",
+					"program/contracts/conformance.md",
+					"set "+peerID+" supersedes = \""+am.IDStr+"\" or re-run mycelium supersede",
+				)
+			}
+		}
+
+		if am.Supersedes != "" {
+			peerID, peerNS, err := parseLinkID(am.Supersedes)
+			if err != nil {
+				add(
+					fmt.Sprintf("%s supersedes %q is not a valid ID", am.IDStr, am.Supersedes),
+					"supersede",
+					"program/contracts/conformance.md",
+					"set supersedes to a same-namespace artifact ID",
+				)
+				continue
+			}
+			if peerNS != am.NS {
+				add(
+					fmt.Sprintf("%s supersedes %s crosses namespace (%s vs %s)", am.IDStr, peerID, am.NS, peerNS),
+					"supersede",
+					"program/contracts/conformance.md",
+					"supersede requires the same namespace",
+				)
+				continue
+			}
+			peer, ok := byID[peerID]
+			if !ok {
+				add(
+					fmt.Sprintf("%s supersedes %s has no file", am.IDStr, peerID),
+					"supersede",
+					"program/contracts/conformance.md",
+					"add the peer artifact or fix supersedes",
+				)
+				continue
+			}
+			if peer.Status != "Superseded" {
+				add(
+					fmt.Sprintf("%s supersedes %s but peer status is %q (want Superseded)", am.IDStr, peerID, peer.Status),
+					"supersede",
+					"program/contracts/conformance.md",
+					"set "+peerID+" status = \"Superseded\" or re-run mycelium supersede",
+				)
+			}
+			if peer.SupersededBy != am.IDStr {
+				add(
+					fmt.Sprintf("%s supersedes %s but peer superseded_by is %q (want %s)", am.IDStr, peerID, peer.SupersededBy, am.IDStr),
+					"supersede",
+					"program/contracts/conformance.md",
+					"set "+peerID+" superseded_by = \""+am.IDStr+"\" or re-run mycelium supersede",
+				)
+			}
+		}
+	}
+
+	for newID, olds := range inbound {
+		if len(olds) > 1 {
+			add(
+				fmt.Sprintf("%s has multiple inbound superseded_by links (%s)", newID, strings.Join(olds, ", ")),
+				"supersede",
+				"program/contracts/conformance.md",
+				"one-to-one this phase; keep a single superseded_by pointing at "+newID,
+			)
+		}
+	}
+}
+
+func parseLinkID(tok string) (canon, ns string, err error) {
+	id, err := idpath.Parse(tok)
+	if err != nil {
+		return "", "", err
+	}
+	canon, err = idpath.FormatID(id.NS, id.N)
+	if err != nil {
+		return "", "", err
+	}
+	return canon, id.NS, nil
+}
+
+func metaString(m map[string]any, key string) string {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
+	}
+	s, ok := v.(string)
+	if !ok {
+		return fmt.Sprint(v)
+	}
+	return s
 }
 
 func contains(ss []string, v string) bool {

@@ -16,6 +16,10 @@ Use the `mycelium` CLI for scaffolded operations:
 - `mycelium status` — single-instance status (`--all` for portfolio; `--offline` when hermetic)
 - `mycelium index` — rebuild `index.md`
 - `mycelium publish` — create/update the GitHub repo for this idea
+- `mycelium supersede <OLD-ID> --by <NEW-ID>` — supersede one artifact with another
+
+Artifact supersede is `mycelium supersede` (front-matter cross-links + log line).
+It does not change idea `state`. Idea lifecycle stays `mycelium state` / `wake`.
 
 Global exit codes: `0` success, `1` failure. Teaching errors go to stderr.
 

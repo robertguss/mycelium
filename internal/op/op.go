@@ -240,8 +240,8 @@ func (s *Session) commitN(max int) (int, error) {
 			_ = journal.Save(s.root, s.journal)
 			return applied, fmt.Errorf("op: missing staged source %s", from)
 		}
-		// Replace existing To only for known regenerable paths (generators / wake briefs).
-		if toOK && !allowReplace(toRel) {
+		// Replace existing To only for regenerable paths, or supersede artifact RelTos.
+		if toOK && !s.allowReplace(toRel) {
 			_ = journal.Save(s.root, s.journal)
 			return applied, fmt.Errorf("%w: both %s and %s exist", ErrRenameConflict, from, to)
 		}
@@ -420,10 +420,28 @@ func validateContained(root, rel string) error {
 	return nil
 }
 
-// allowReplace reports whether Commit may overwrite an existing destination.
-// log.md, mycelium.toml, and index.md are updated in place by generators.
-// briefs/*.md may be overwritten by wake (same-day replace + LATEST).
-func allowReplace(toRel string) bool {
+// allowReplace reports whether this session may overwrite an existing destination.
+// Regenerable paths (log.md, mycelium.toml, index.md, briefs/*.md) always may.
+// For op == "supersede" only, Commit may also replace the journal's artifact RelTos.
+// Do not open general overwrite for "new".
+func (s *Session) allowReplace(toRel string) bool {
+	if allowReplacePath(toRel) {
+		return true
+	}
+	if s == nil || s.journal == nil || s.journal.Op != "supersede" {
+		return false
+	}
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(toRel)))
+	for _, r := range s.journal.Renames {
+		if filepath.ToSlash(filepath.Clean(filepath.FromSlash(r.To))) == clean {
+			return true
+		}
+	}
+	return false
+}
+
+// allowReplacePath is the regenerable-path allowlist shared by all ops.
+func allowReplacePath(toRel string) bool {
 	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(toRel)))
 	if clean == "log.md" || clean == "mycelium.toml" || clean == "index.md" {
 		return true

@@ -424,6 +424,67 @@ func TestCommitRefusesClobberExistingDEC(t *testing.T) {
 	_ = s.Close()
 }
 
+func TestCommitSupersedeAllowsReplaceArtifact(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, op.Intent{
+		Op:         "supersede",
+		Type:       "decision",
+		Title:      "DEC-001 -> DEC-002",
+		OriginalID: "DEC-001",
+		LogLine:    "2026-08-15\tsupersede\tDEC-001\tDEC-001 -> DEC-002",
+		Argv:       []string{"supersede", "DEC-001", "--by", "DEC-002"},
+		OpID:       "test-supersede",
+	}, fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldPath := filepath.Join(root, "decisions", "DEC-001-old.md")
+	newPath := filepath.Join(root, "decisions", "DEC-002-new.md")
+	if err := os.MkdirAll(filepath.Dir(oldPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(oldPath, []byte("OLD-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newPath, []byte("NEW-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "log.md"), []byte("LOG-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "index.md"), []byte("INDEX-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "mycelium.toml"), []byte("MAN-BEFORE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Stage([]op.Staged{
+		{RelTo: "decisions/DEC-001-old.md", Content: []byte("OLD-AFTER\n")},
+		{RelTo: "decisions/DEC-002-new.md", Content: []byte("NEW-AFTER\n")},
+		{RelTo: "index.md", Content: []byte("INDEX-AFTER\n")},
+		{RelTo: "log.md", Content: []byte("LOG-AFTER\n")},
+		{RelTo: "mycelium.toml", Content: []byte("MAN-AFTER\n")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Commit(); err != nil {
+		t.Fatalf("supersede commit: %v", err)
+	}
+	for _, tc := range []struct{ path, want string }{
+		{oldPath, "OLD-AFTER\n"},
+		{newPath, "NEW-AFTER\n"},
+		{filepath.Join(root, "log.md"), "LOG-AFTER\n"},
+	} {
+		b, err := os.ReadFile(tc.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(b) != tc.want {
+			t.Fatalf("%s = %q want %q", tc.path, b, tc.want)
+		}
+	}
+}
+
 func TestAbortRefusesLiveLock(t *testing.T) {
 	root := t.TempDir()
 	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
