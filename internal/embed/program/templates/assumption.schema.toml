@@ -4,6 +4,7 @@ filename_pattern = "ASM-{NNN}-{slug}.md"
 stage_scoped = false
 digits = 3
 required_front_matter = ["id", "title", "status", "date", "attached_to"]
+# optional: superseded_by, supersedes (set by mycelium supersede)
 required_sections = [
   "Statement",
   "Falsifier",
@@ -12,4 +13,4 @@ required_sections = [
 ]
 
 [enums.status]
-values = ["Open", "Held", "Falsified", "Retired"]
+values = ["Open", "Held", "Falsified", "Retired", "Superseded"]

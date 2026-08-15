@@ -4,6 +4,7 @@ filename_pattern = "DEC-{NNN}-{slug}.md"
 stage_scoped = false
 digits = 3
 required_front_matter = ["id", "title", "status", "date", "owner"]
+# optional: superseded_by, supersedes (set by mycelium supersede)
 required_sections = [
   "Context",
   "Decision",
