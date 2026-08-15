@@ -3,7 +3,7 @@ id = "{{ID}}"
 title = "{{TITLE}}"
 status = "Open"
 date = "{{DATE}}"
-attached_to = ""
+attached_to = "TBD"
 +++
 
 # {{ID}} — {{TITLE}}

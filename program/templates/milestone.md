@@ -1,7 +1,7 @@
 +++
 id = "{{ID}}"
 title = "{{TITLE}}"
-phase = ""
+phase = "TBD"
 date = "{{DATE}}"
 +++
 
