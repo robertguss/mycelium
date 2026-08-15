@@ -16,11 +16,14 @@ import (
 	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/lifecycle"
 	"github.com/robertguss/mycelium/internal/lock"
+	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/metadata"
 	"github.com/robertguss/mycelium/internal/op"
+	"github.com/robertguss/mycelium/internal/revisit"
 	"github.com/robertguss/mycelium/internal/schema"
 	"github.com/robertguss/mycelium/internal/teach"
+	"github.com/robertguss/mycelium/internal/wakebrief"
 )
 
 // Finding is an alias for teach.Finding.
@@ -40,7 +43,7 @@ type Result struct {
 var (
 	ErrNotInstance = errors.New("check: not a mycelium instance")
 	linkRE         = regexp.MustCompile(`\b(DEC|ASM|EVD|SPK|FND|REC|REQ|OQ|RSK|PHASE|MS)-[0-9]+\b`)
-	logLineRE      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check)\t(\S+)\t`)
+	logLineRE      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake)\t(\S+)\t`)
 	dateRE         = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 	h2RE           = regexp.MustCompile(`(?m)^## (.+)$`)
 )
@@ -127,7 +130,8 @@ func Run(root string) Result {
 	index := buildArtifactIndex(root, schemas, &r, add)
 	checkFrontMatterAndSections(root, index, schemaByHome, add)
 	checkStageScoped(m, index, schemaByHome, add)
-	checkLog(root, add)
+	logBytes := checkLog(root, add)
+	checkWakeBrief(root, logBytes, add)
 	checkLinks(root, index, homeByNS, add)
 
 	if len(r.Findings) == 0 {
@@ -138,21 +142,30 @@ func Run(root string) Result {
 
 func checkLifecycle(m manifest.Manifest, add func(string, string, string, string)) {
 	switch m.State {
-	case "spark", "exploring", "simmering", "archived":
-		// ok (simmering+revisit already enforced by manifest.Parse)
-	case "clarified", "handed-off":
+	case "spark", "exploring", "clarified", "archived":
+		// ok; leftover revisit is not a fail
+	case "simmering":
+		if _, _, _, err := revisit.Parse(m.Revisit); err != nil {
+			add(
+				fmt.Sprintf("state=simmering requires revisit matching revisit grammar (got %q)", m.Revisit),
+				"revisit",
+				"program/contracts/revisit.md",
+				"set revisit to YYYY-MM-DD (UTC) or event:<kebab>",
+			)
+		}
+	case "handed-off":
 		add(
-			fmt.Sprintf("state=%s is not reachable in PHASE-01", m.State),
+			"state=handed-off requires a PHASE-06 handoff packet",
 			"lifecycle",
 			"program/contracts/lifecycle.md",
-			"restore state to spark|exploring|simmering|archived (PHASE-02/06 commands are not shipped)",
+			"stay in clarified, or mycelium state archived; packet command is not shipped",
 		)
 	default:
 		add(
 			fmt.Sprintf("unknown state %q", m.State),
 			"lifecycle",
 			"program/contracts/lifecycle.md",
-			"set state to spark|exploring|simmering|archived",
+			"set state to spark|exploring|simmering|clarified|archived",
 		)
 	}
 }
@@ -482,11 +495,11 @@ func checkStageScoped(m manifest.Manifest, arts []artifactFile, byHome map[strin
 	}
 }
 
-func checkLog(root string, add func(string, string, string, string)) {
+func checkLog(root string, add func(string, string, string, string)) []byte {
 	b, err := os.ReadFile(filepath.Join(root, "log.md"))
 	if err != nil {
 		add("log.md missing or unreadable", "log", "program/contracts/conformance.md", "restore log.md")
-		return
+		return nil
 	}
 	for i, line := range strings.Split(string(b), "\n") {
 		trim := strings.TrimRight(line, "\r")
@@ -498,10 +511,55 @@ func checkLog(root string, add func(string, string, string, string)) {
 				fmt.Sprintf("log.md line %d has illegal prefix", i+1),
 				"log-prefix",
 				"program/contracts/conformance.md",
-				"use YYYY-MM-DD\\t(scaffold|new|tier|publish|check)\\t<id>\\t…",
+				"use YYYY-MM-DD\\t(scaffold|new|tier|publish|check|state|wake)\\t<id>\\t…",
 			)
 		}
 	}
+	return b
+}
+
+func checkWakeBrief(root string, logBytes []byte, add func(string, string, string, string)) {
+	if !logHasWake(logBytes) {
+		return
+	}
+	path := filepath.Join(root, "briefs", "LATEST.md")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		add(
+			"log has wake op but briefs/LATEST.md is missing",
+			"wake",
+			"program/contracts/wake.md",
+			"mycelium wake   # rewrite the re-entry brief from simmering",
+		)
+		return
+	}
+	present := map[string]struct{}{}
+	for _, m := range h2RE.FindAllStringSubmatch(string(b), -1) {
+		present[m[1]] = struct{}{}
+	}
+	for _, sec := range wakebrief.RequiredH2s() {
+		if _, ok := present[sec]; !ok {
+			add(
+				fmt.Sprintf("briefs/LATEST.md missing required H2 %q", sec),
+				"wake",
+				"program/contracts/wake.md",
+				"mycelium wake   # rewrite the re-entry brief",
+			)
+		}
+	}
+}
+
+func logHasWake(logBytes []byte) bool {
+	if len(logBytes) == 0 {
+		return false
+	}
+	for _, line := range logfmt.ParseableLines(logBytes) {
+		parts := strings.SplitN(line, "\t", 4)
+		if len(parts) >= 2 && parts[1] == "wake" {
+			return true
+		}
+	}
+	return false
 }
 
 func checkLinks(root string, arts []artifactFile, homeByNS map[string]string, add func(string, string, string, string)) {
