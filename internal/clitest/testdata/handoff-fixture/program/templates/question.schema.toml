@@ -1,0 +1,15 @@
+namespace = "OQ"
+home = "questions"
+filename_pattern = "OQ-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "agreement", "date"]
+required_sections = [
+  "Question",
+  "Context",
+  "Positions",
+  "Disposition",
+]
+
+[enums.agreement]
+values = ["open", "aligned", "agree-to-disagree"]

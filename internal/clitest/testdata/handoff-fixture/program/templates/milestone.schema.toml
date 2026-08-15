@@ -1,0 +1,11 @@
+namespace = "MS"
+home = "milestones"
+filename_pattern = "MS-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "phase", "date"]
+required_sections = [
+  "Outcome",
+  "Prerequisites",
+  "Acceptance Evidence",
+]

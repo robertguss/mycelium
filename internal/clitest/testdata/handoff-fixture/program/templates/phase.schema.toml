@@ -1,0 +1,15 @@
+namespace = "PHASE"
+home = "phases"
+filename_pattern = "PHASE-{NN}-{slug}.md"
+stage_scoped = false
+digits = 2
+required_front_matter = ["id", "title", "status", "date"]
+required_sections = [
+  "Entry Criteria",
+  "Scope",
+  "Explicit Non-Goals",
+  "Exit Criteria",
+]
+
+[enums.status]
+values = ["Planned", "In Progress", "Accepted", "Abandoned"]

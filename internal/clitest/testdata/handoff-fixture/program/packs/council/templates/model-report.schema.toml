@@ -1,0 +1,13 @@
+namespace = "RPT"
+home = "reviews/reports"
+filename_pattern = "RPT-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "date", "model", "commissioning", "rung", "adapter", "prompt_sha256"]
+required_sections = ["Position", "Findings", "Dissent"]
+
+[enums.rung]
+values = ["second-opinion", "council"]
+
+[enums.adapter]
+values = ["cursor", "manual"]

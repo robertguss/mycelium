@@ -1,0 +1,12 @@
+name = "high-assurance"
+emits = [
+  "decisions/", "assumptions/", "evidence/", "questions/", "risks/",
+  "spikes/", "findings/", "recommendations/", "requirements/",
+  "phases/", "milestones/",
+]
+binds = [
+  "manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/", "index.md",
+  "decisions/", "assumptions/", "evidence/", "questions/", "risks/",
+  "spikes/", "findings/", "recommendations/", "requirements/",
+  "phases/", "milestones/",
+]

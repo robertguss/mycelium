@@ -1,0 +1,20 @@
+schema_version = 1
+idea_name = 'Handoff Fixture'
+slug = 'handoff-fixture'
+state = 'clarified'
+tier = 'focused'
+methodology_version = '2.0.0'
+generated_by_cli_version = '0.1.0-dev'
+created_date = '2026-08-15'
+updated_date = '2026-08-15'
+revisit = ''
+github_repo = ''
+
+[[deviations]]
+convention = "extra-top-level:playbooks"
+reason = "PHASE-06 canonical fixture pre-places playbooks for handoff copy"
+
+[[deviations]]
+convention = "extra-top-level:acceptance"
+reason = "PHASE-06 canonical fixture pre-places acceptance tests for handoff copy"
+

@@ -1,0 +1,16 @@
+namespace = "CMP"
+home = "reviews/commissioning"
+filename_pattern = "CMP-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "date", "rung", "opt_in", "cost_class", "adapter"]
+required_sections = ["Prompt", "Attachments", "Cost"]
+
+[enums.rung]
+values = ["second-opinion", "council"]
+
+[enums.adapter]
+values = ["cursor", "manual"]
+
+[enums.cost_class]
+values = ["cheap", "quick", "standard", "high-stakes"]
