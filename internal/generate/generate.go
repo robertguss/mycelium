@@ -14,6 +14,7 @@ import (
 	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/idpath"
+	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/op"
@@ -68,6 +69,14 @@ func Run(opts Options, deps Deps) int {
 			"command-flags",
 			"framework/phases/PHASE-01-implementation-brief.md",
 			`usage: mycelium new <type> "<Title>" [--dir PATH]`,
+		)
+	}
+	if strings.ContainsAny(title, "\n\t") {
+		return teach.Write(deps.Stderr,
+			"title must not contain newline or tab characters",
+			"log-injection",
+			"program/contracts/conformance.md",
+			`pass a single-line title without tab characters`,
 		)
 	}
 
@@ -281,24 +290,6 @@ func Run(opts Options, deps Deps) int {
 				"report this as a CLI bug",
 			)
 		}
-		dest := filepath.Join(root, filepath.FromSlash(relPath))
-		if _, err := os.Stat(dest); err == nil {
-			rollbackOrClose(sess)
-			return teach.Write(deps.Stderr,
-				fmt.Sprintf("refuse overwrite: %s already exists", relPath),
-				"overwrite",
-				"program/contracts/naming.md",
-				"rename the existing file or pick another title",
-			)
-		} else if !os.IsNotExist(err) {
-			rollbackOrClose(sess)
-			return teach.Write(deps.Stderr,
-				fmt.Sprintf("cannot stat destination: %v", err),
-				"overwrite",
-				"program/contracts/naming.md",
-				"fix filesystem permissions and retry",
-			)
-		}
 		sess.Journal().LogLine = logfmt.Line(date, "new", idStr, title)
 		if err := sess.SetOriginalID(idStr); err != nil {
 			rollbackOrClose(sess)
@@ -333,6 +324,20 @@ func Run(opts Options, deps Deps) int {
 		if sess.Journal().LogLine == "" {
 			sess.Journal().LogLine = logfmt.Line(date, "new", idStr, title)
 		}
+	}
+
+	if err := refuseOverwriteUnlessDone(root, relPath, sess.Journal().Renames); err != nil {
+		if len(sess.Journal().Renames) > 0 {
+			_ = sess.Close()
+		} else {
+			rollbackOrClose(sess)
+		}
+		return teach.Write(deps.Stderr,
+			fmt.Sprintf("refuse overwrite: %s already exists", relPath),
+			"overwrite",
+			"program/contracts/naming.md",
+			"rename the existing file, pick another title, or mycelium check --abort-journal",
+		)
 	}
 
 	// Resume with existing renames: Stage is a no-op; Commit finishes.
@@ -391,6 +396,29 @@ func ReplaceTokens(tpl, id, title, slugStr, date string) string {
 	out = strings.ReplaceAll(out, "{{DATE}}", date)
 	return out
 }
+
+// refuseOverwriteUnlessDone refuses when dest exists and the matching rename
+// is not already Done (H2: resume must not clobber a user file).
+func refuseOverwriteUnlessDone(root, relPath string, renames []journal.Rename) error {
+	dest := filepath.Join(root, filepath.FromSlash(relPath))
+	_, err := os.Stat(dest)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	want := filepath.ToSlash(filepath.Clean(filepath.FromSlash(relPath)))
+	for _, r := range renames {
+		got := filepath.ToSlash(filepath.Clean(filepath.FromSlash(r.To)))
+		if got == want && r.Done {
+			return nil
+		}
+	}
+	return errOverwrite
+}
+
+var errOverwrite = errors.New("generate: destination exists")
 
 func rollbackOrClose(sess *op.Session) {
 	if err := sess.Rollback(); errors.Is(err, op.ErrPartialCommit) {

@@ -14,7 +14,9 @@ import (
 	"github.com/robertguss/mycelium/internal/execrun"
 	"github.com/robertguss/mycelium/internal/generate"
 	"github.com/robertguss/mycelium/internal/idpath"
+	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/manifest"
+	"github.com/robertguss/mycelium/internal/op"
 )
 
 func fixedDeps(t *testing.T, cwd string) cli.Deps {
@@ -136,6 +138,80 @@ func TestRefuseOverwrite(t *testing.T) {
 		t.Fatalf("stderr=%q", errText)
 	}
 	assertTeachingShape(t, errText)
+}
+
+func TestRefuseOverwriteOnResumeWithLeftoverJournal(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "Resume Overwrite")
+	deps := fixedDeps(t, cwd)
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	rel := "decisions/DEC-001-title.md"
+	dest := filepath.Join(inst, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	userBytes := []byte("user-owned content\n")
+	if err := os.WriteFile(dest, userBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sess, err := op.Begin(inst, op.Intent{
+		Op:         "new",
+		Type:       "decision",
+		Title:      "Title",
+		OriginalID: "DEC-001",
+		LogLine:    "2026-08-15\tnew\tDEC-001\tTitle",
+		Argv:       []string{"new", "decision", "Title", "--dir", inst},
+		OpID:       "resume-ow",
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Stage([]op.Staged{
+		{RelTo: rel, Content: []byte("staged-clobber\n")},
+		{RelTo: "log.md", Content: []byte("log\n")},
+		{RelTo: "mycelium.toml", Content: []byte("m\n")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := journal.Load(inst); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _, errText := runNew(t, deps, "new", "decision", "Title", "--dir", inst)
+	if code != 1 {
+		t.Fatalf("exit %d want 1 stderr=%q", code, errText)
+	}
+	if !strings.Contains(errText, "refuse overwrite") {
+		t.Fatalf("stderr=%q", errText)
+	}
+	assertTeachingShape(t, errText)
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(userBytes) {
+		t.Fatalf("dest changed: %q", got)
+	}
+}
+
+func TestRefuseTitleNewlineAndTab(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "Bad Title")
+	deps := fixedDeps(t, cwd)
+	for _, title := range []string{"line\nbreak", "has\ttab"} {
+		code, _, errText := runNew(t, deps, "new", "decision", title, "--dir", inst)
+		if code != 1 {
+			t.Fatalf("title %q exit %d want 1", title, code)
+		}
+		if !strings.Contains(errText, "newline or tab") {
+			t.Fatalf("title %q stderr=%q", title, errText)
+		}
+		assertTeachingShape(t, errText)
+	}
 }
 
 func TestRefuseFindingWithoutRange(t *testing.T) {
