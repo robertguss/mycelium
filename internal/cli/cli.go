@@ -12,6 +12,7 @@ import (
 	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/generate"
 	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/scaffold"
 	"github.com/robertguss/mycelium/internal/teach"
@@ -23,10 +24,11 @@ const usage = `mycelium — convention-over-configuration thinking CLI
 Usage:
   mycelium version
   mycelium new idea <name> [--dir PATH] [--offline] [--publish] [--tier focused|standard|high-assurance]
+  mycelium new <type> "<Title>" [--dir PATH]
   mycelium check [--dir PATH] [--abort-journal]
   mycelium -h | --help
 
-PHASE-01 commands (later slices): tier, publish, new <type>
+PHASE-01 commands (later slices): tier, publish
 `
 
 // Deps are injectable collaborators for hermetic tests.
@@ -122,12 +124,44 @@ func cmdNew(args []string, stdout, stderr io.Writer, deps Deps) int {
 	if args[0] == "idea" {
 		return cmdNewIdea(args[1:], stdout, stderr, deps)
 	}
-	return teach.Write(stderr,
-		fmt.Sprintf("new %q is not implemented in this slice", args[0]),
-		"phase-01-slice-order",
-		"framework/phases/PHASE-01-implementation-brief.md",
-		"use mycelium new idea --offline; generator types land in a later slice",
-	)
+	return cmdNewType(args, stdout, stderr, deps)
+}
+
+func cmdNewType(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseNewTypeFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, `Usage: mycelium new <type> "<Title>" [--dir PATH]`)
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			`usage: mycelium new <type> "<Title>" [--dir PATH]`,
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	argv := append([]string{"new"}, args...)
+	return generate.Run(generate.Options{
+		TypeKey: opts.typeKey,
+		Title:   opts.title,
+		Dir:     opts.dir,
+		Cwd:     cwd,
+		Argv:    argv,
+	}, generate.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
 }
 
 func cmdNewIdea(args []string, stdout, stderr io.Writer, deps Deps) int {
@@ -262,9 +296,45 @@ type newIdeaFlags struct {
 	tier    string
 }
 
+type newTypeFlags struct {
+	typeKey string
+	title   string
+	dir     string
+}
+
 type checkFlags struct {
 	dir   string
 	abort bool
+}
+
+func parseNewTypeFlags(args []string) (newTypeFlags, error) {
+	var out newTypeFlags
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			positionals = append(positionals, a)
+		}
+	}
+	if len(positionals) == 0 {
+		return out, fmt.Errorf("new requires a type key and title")
+	}
+	out.typeKey = positionals[0]
+	out.title = strings.TrimSpace(strings.Join(positionals[1:], " "))
+	return out, nil
 }
 
 func parseCheckFlags(args []string) (checkFlags, error) {

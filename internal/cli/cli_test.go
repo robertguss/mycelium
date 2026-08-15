@@ -97,16 +97,6 @@ func TestPhase01NotImplementedTeachingError(t *testing.T) {
 			}
 		})
 	}
-	t.Run("new type", func(t *testing.T) {
-		var stdout, stderr bytes.Buffer
-		code := cli.Run([]string{"mycelium", "new", "decision", "X"}, &stdout, &stderr, cli.Deps{})
-		if code != 1 {
-			t.Fatalf("exit %d want 1", code)
-		}
-		if !strings.Contains(stderr.String(), "not implemented in this slice") {
-			t.Fatalf("stderr=%q", stderr.String())
-		}
-	})
 }
 
 func TestCLINewIdeaOfflineThenCheck(t *testing.T) {
