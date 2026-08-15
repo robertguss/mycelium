@@ -84,7 +84,7 @@ func TestUnknownCommandTeachingError(t *testing.T) {
 }
 
 func TestPhase01NotImplementedTeachingError(t *testing.T) {
-	for _, cmd := range []string{"check", "tier", "publish"} {
+	for _, cmd := range []string{"tier", "publish"} {
 		t.Run(cmd, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			code := cli.Run([]string{"mycelium", cmd}, &stdout, &stderr, cli.Deps{})
@@ -107,6 +107,90 @@ func TestPhase01NotImplementedTeachingError(t *testing.T) {
 			t.Fatalf("stderr=%q", stderr.String())
 		}
 	})
+}
+
+func TestCLINewIdeaOfflineThenCheck(t *testing.T) {
+	root := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	deps := cli.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)},
+		Runner:    rec,
+		Getwd:     func() (string, error) { return root, nil },
+		LookupEnv: func(string) string { return "" },
+	}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", "Check Me", "--offline"},
+		&stdout, &stderr, deps,
+	)
+	if code != 0 {
+		t.Fatalf("scaffold exit %d stderr=%q", code, stderr.String())
+	}
+	inst := filepath.Join(root, "check-me")
+	stdout.Reset()
+	stderr.Reset()
+	code = cli.Run(
+		[]string{"mycelium", "check", "--dir", inst},
+		&stdout, &stderr, deps,
+	)
+	if code != 0 {
+		t.Fatalf("check exit %d stderr=%q", code, stderr.String())
+	}
+	got := stdout.String()
+	wantLines := []string{
+		"mycelium check: ok",
+		"instance: check-me",
+		"state: spark",
+		"tier: focused",
+		"artifacts: 0",
+	}
+	for _, line := range wantLines {
+		if !strings.Contains(got, line) {
+			t.Fatalf("stdout missing %q in %q", line, got)
+		}
+	}
+}
+
+func TestCLICheckTeachingErrorFourLineShape(t *testing.T) {
+	root := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	deps := cli.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)},
+		Runner:    rec,
+		Getwd:     func() (string, error) { return root, nil },
+		LookupEnv: func(string) string { return "" },
+	}
+	var stdout, stderr bytes.Buffer
+	if code := cli.Run([]string{"mycelium", "new", "idea", "Shape", "--offline"}, &stdout, &stderr, deps); code != 0 {
+		t.Fatalf("scaffold: %s", stderr.String())
+	}
+	inst := filepath.Join(root, "shape")
+	if err := os.WriteFile(filepath.Join(inst, "scratch.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	code := cli.Run([]string{"mycelium", "check", "--dir", inst}, &stdout, &stderr, deps)
+	if code != 1 {
+		t.Fatalf("exit %d want 1", code)
+	}
+	errText := stderr.String()
+	lines := strings.Split(strings.TrimSuffix(errText, "\n"), "\n")
+	if len(lines) < 4 {
+		t.Fatalf("want >=4 teaching lines, got %d: %q", len(lines), errText)
+	}
+	if !strings.HasPrefix(lines[0], "mycelium: ") {
+		t.Fatalf("line0=%q", lines[0])
+	}
+	if !strings.HasPrefix(lines[1], "convention: ") {
+		t.Fatalf("line1=%q", lines[1])
+	}
+	if !strings.HasPrefix(lines[2], "contract: ") {
+		t.Fatalf("line2=%q", lines[2])
+	}
+	if !strings.HasPrefix(lines[3], "fix: ") {
+		t.Fatalf("line3=%q", lines[3])
+	}
 }
 
 func TestCLINewIdeaOffline(t *testing.T) {
