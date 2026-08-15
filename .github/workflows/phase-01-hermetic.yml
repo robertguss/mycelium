@@ -1,0 +1,62 @@
+name: Phase 01 Hermetic
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  hermetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test
+        run: CGO_ENABLED=0 go test ./...
+      - name: Build
+        run: CGO_ENABLED=0 go build -o /tmp/mycelium ./cmd/mycelium
+      - name: Verify version
+        run: test "$(/tmp/mycelium version)" = "0.1.0-dev"
+      - name: Hermetic fixture
+        env:
+          MYCELIUM_OFFLINE: "1"
+        run: |
+          set -euo pipefail
+          stub_dir="$(mktemp -d)"
+          real_git="$(command -v git)"
+          cat > "$stub_dir/gh" <<'EOF'
+          #!/bin/sh
+          echo "gh network access forbidden" >&2
+          exit 99
+          EOF
+          cat > "$stub_dir/git" <<EOF
+          #!/bin/sh
+          if [ "\$1" = "remote" ]; then
+            echo "git remote network access forbidden" >&2
+            exit 99
+          fi
+          exec "$real_git" "\$@"
+          EOF
+          chmod +x "$stub_dir/gh" "$stub_dir/git"
+          export PATH="$stub_dir:$PATH"
+          work_dir="$(mktemp -d)"
+          cd "$work_dir"
+          /tmp/mycelium new idea "CI Fixture" --offline
+          cat >> ci-fixture/mycelium.toml <<'EOF'
+
+          [identifiers]
+          findings = "FND-001..FND-099"
+          recommendations = "REC-001..REC-099"
+          requirements = "REQ-001..REQ-299"
+          EOF
+          for type in decision assumption evidence spike finding recommendation requirement question risk phase milestone; do
+            /tmp/mycelium new "$type" "Sample $type" --dir ci-fixture
+          done
+          /tmp/mycelium check --dir ci-fixture
+          for path in framework Justfile scripts research-program.toml; do
+            test ! -e "ci-fixture/$path"
+          done

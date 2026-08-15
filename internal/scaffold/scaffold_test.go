@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/robertguss/mycelium/internal/clitest"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
 	"github.com/robertguss/mycelium/internal/manifest"
@@ -184,6 +185,7 @@ func TestOfflineNeverExecsGh(t *testing.T) {
 	if fake.Called("gh") {
 		t.Fatal("gh recorded")
 	}
+	clitest.AssertNoNetwork(t, &execrun.Recording{Calls: fake.Calls})
 }
 
 func TestInstanceLacksMasterOnlyPaths(t *testing.T) {
