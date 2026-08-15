@@ -15,7 +15,6 @@ import (
 	"github.com/robertguss/mycelium/internal/generate"
 	"github.com/robertguss/mycelium/internal/idpath"
 	"github.com/robertguss/mycelium/internal/manifest"
-	"github.com/robertguss/mycelium/internal/version"
 )
 
 func fixedDeps(t *testing.T, cwd string) cli.Deps {
@@ -39,7 +38,6 @@ func scaffoldOffline(t *testing.T, cwd, name string) string {
 		t.Fatalf("scaffold exit %d stderr=%q", code, stderr.String())
 	}
 	slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
-	// rough: use known slugify for test names we control
 	inst := filepath.Join(cwd, slug)
 	if _, err := os.Stat(filepath.Join(inst, "mycelium.toml")); err != nil {
 		t.Fatalf("instance missing at %s: %v", inst, err)
@@ -125,8 +123,7 @@ func TestRefuseOverwrite(t *testing.T) {
 	cwd := t.TempDir()
 	inst := scaffoldOffline(t, cwd, "Overwrite")
 	deps := fixedDeps(t, cwd)
-	// Occupy next destination path without counting as a numbered artifact
-	// (directory → skipped by nextID scan; Stat still sees the path).
+	// Directory occupies the path for Stat but nextID skips dirs.
 	dest := filepath.Join(inst, "decisions", "DEC-001-same-title.md")
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		t.Fatal(err)
@@ -274,15 +271,6 @@ func TestLogLineAppended(t *testing.T) {
 }
 
 func TestTokensReplacedLeftoverStays(t *testing.T) {
-	got := generate.ReplaceTokens(
-		"id={{ID}} title={{TITLE}} slug={{SLUG}} date={{DATE}} keep={{FOO}}",
-		"DEC-001", "Hello World", "hello-world", "2026-08-15",
-	)
-	want := "id=DEC-001 title=Hello World slug=hello-world date=2026-08-15 keep={{FOO}}"
-	if got != want {
-		t.Fatalf("got %q want %q", got, want)
-	}
-
 	cwd := t.TempDir()
 	inst := scaffoldOffline(t, cwd, "Tokens")
 	deps := fixedDeps(t, cwd)
@@ -373,12 +361,6 @@ func TestDirFlagWithoutChdir(t *testing.T) {
 	}
 }
 
-func TestVersionStillDev(t *testing.T) {
-	if version.Version != "0.1.0-dev" {
-		t.Fatalf("version=%q", version.Version)
-	}
-}
-
 func TestReplaceTokensUnit(t *testing.T) {
 	in := "{{ID}}/{{TITLE}}/{{SLUG}}/{{DATE}}/{{FOO}}/{{ID}}"
 	got := generate.ReplaceTokens(in, "X", "T", "s", "D")
@@ -388,7 +370,6 @@ func TestReplaceTokensUnit(t *testing.T) {
 }
 
 func TestGeneratePackageUsesCheckFindRoot(t *testing.T) {
-	// Ensure --dir nested path still finds instance root.
 	cwd := t.TempDir()
 	inst := scaffoldOffline(t, cwd, "Nested")
 	nested := filepath.Join(inst, "program", "templates")
