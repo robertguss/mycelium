@@ -88,6 +88,38 @@ func runNew(t *testing.T, deps cli.Deps, args ...string) (int, string, string) {
 	return code, stdout.String(), stderr.String()
 }
 
+func TestNewQuestionOmitsCruxAndReasons(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "Question Template")
+	deps := fixedDeps(t, cwd)
+	code, _, errText := runNew(t, deps, "new", "question", "Use SQLite", "--dir", inst)
+	if code != 0 {
+		t.Fatalf("new question exit %d stderr=%q", code, errText)
+	}
+	matches, err := filepath.Glob(filepath.Join(inst, "questions", "OQ-*.md"))
+	if err != nil || len(matches) != 1 {
+		t.Fatalf("question files=%v err=%v", matches, err)
+	}
+	body, err := os.ReadFile(matches[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	if !strings.Contains(text, `agreement = "open"`) {
+		t.Fatalf("want agreement=open in:\n%s", text)
+	}
+	for _, banned := range []string{"## Crux", "## Reasons"} {
+		if strings.Contains(text, banned) {
+			t.Fatalf("emitted question contains %q:\n%s", banned, text)
+		}
+	}
+	for _, want := range []string{"## Question", "## Context", "## Positions", "## Disposition"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("emitted question missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestGenerateAllElevenTypesThenCheck(t *testing.T) {
 	cwd := t.TempDir()
 	inst := scaffoldOffline(t, cwd, "All Types")

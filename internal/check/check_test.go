@@ -354,3 +354,49 @@ func TestAbortNothing(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestAgreeToDisagreeMissingCruxStillPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice1 No IFF")
+	qdir := filepath.Join(root, "questions")
+	if err := os.MkdirAll(qdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `+++
+id = "OQ-001"
+title = "Use SQLite"
+agreement = "agree-to-disagree"
+date = "2026-08-15"
++++
+
+# OQ-001 — Use SQLite
+
+## Question
+
+q
+
+## Context
+
+c
+
+## Positions
+
+### Human
+
+h
+
+### Agent
+
+a
+
+## Disposition
+
+d
+`
+	if err := os.WriteFile(filepath.Join(qdir, "OQ-001-use-sqlite.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("Slice 1 must not IFF-fail missing Crux; findings=%v", r.Findings)
+	}
+}
