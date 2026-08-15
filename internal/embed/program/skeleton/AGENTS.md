@@ -21,7 +21,7 @@ Global exit codes: `0` success, `1` failure. Teaching errors go to stderr.
 
 ## Skills
 
-New scaffolds emit `.agents/skills/{mycelium-cli,spark,wake,portfolio}/SKILL.md`. `tier`, `index`, `state`, and `wake` do not retrofit skills into older instances. Instances scaffolded before these skills: re-scaffold or copy skills manually from `program/skills/`.
+New scaffolds emit `.agents/skills/{mycelium-cli,spark,wake,portfolio,thinking}/SKILL.md`. `tier`, `index`, `state`, and `wake` do not retrofit skills into older instances. Instances scaffolded before these skills: re-scaffold or copy skills manually from `program/skills/`.
 
 ## Manual floor
 

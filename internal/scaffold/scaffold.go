@@ -414,6 +414,7 @@ func buildFiles(ideaName, ideaSlug, tier, date, cliVersion string) ([]op.Staged,
 		{"program/skills/spark/SKILL.md", ".agents/skills/spark/SKILL.md"},
 		{"program/skills/wake/SKILL.md", ".agents/skills/wake/SKILL.md"},
 		{"program/skills/portfolio/SKILL.md", ".agents/skills/portfolio/SKILL.md"},
+		{"program/skills/thinking/SKILL.md", ".agents/skills/thinking/SKILL.md"},
 	} {
 		b, err := myceliumembed.Program.ReadFile(name.embed)
 		if err != nil {

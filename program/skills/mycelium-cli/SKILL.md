@@ -28,9 +28,15 @@ description: >
 
 Exit `0` on success, `1` on failure.
 
+## Sparring
+
+Sparring surface is `mycelium new question`, `mycelium new assumption`,
+`mycelium new decision`, `mycelium new spike`, `mycelium check`, plus the
+`thinking` skill. No `think` / `spar` verb.
+
 ## Skills on scaffold
 
-New `mycelium new idea` scaffolds emit `.agents/skills/{mycelium-cli,spark,wake,portfolio}/SKILL.md`. `tier`, `index`, `state`, and `wake` do not retrofit skills. Existing PHASE-01 instances: re-scaffold or copy skills manually.
+New `mycelium new idea` scaffolds emit `.agents/skills/{mycelium-cli,spark,wake,portfolio,thinking}/SKILL.md`. `tier`, `index`, `state`, and `wake` do not retrofit skills. Existing instances: re-scaffold or copy `thinking` (and other skills) manually.
 
 ## Manual floor
 
