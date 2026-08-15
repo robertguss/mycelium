@@ -18,7 +18,7 @@ This package makes each transition reproducible and prevents missing context.
 
 - Source: (paste or path)
 - Destination: docs/prompts/[filename].md
-- Update research-program.toml: status → prompt-ready when installed
+- Update mycelium.toml / stage index: status → prompt-ready when installed
 - Do not execute the research stage in the install session
 ```
 

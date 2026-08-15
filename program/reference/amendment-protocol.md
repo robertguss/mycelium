@@ -20,7 +20,7 @@ The approved Blueprint and graph may be amended, but never silently.
 4. Obtain explicit human approval.
 5. Create a `DEC-###` when foundational or invalidating prior authority.
 6. Update the Blueprint.
-7. Update `research-program.toml`.
+7. Update `mycelium.toml`.
 8. Mark affected stages `requires-revalidation`, `superseded`, or `blocked`.
 9. Re-run only stages whose assumptions or inputs materially changed.
 10. Preserve all original artifacts in Git history.

@@ -10,11 +10,12 @@ Create the standard research-program repository for `[PROJECT NAME]`.
 
 ## Create
 
+Prefer `mycelium new idea` for a fresh instance. When hand-bootstrapping:
+
 - `README.md`
 - `AGENTS.md`
-- `research-program.toml`
-- `decisions/README.md`
-- Standard `docs/` directories.
+- `mycelium.toml`
+- Type homes as needed (`decisions/`, …)
 - Placeholder artifact files declared by the approved Blueprint.
 
 ## Rules

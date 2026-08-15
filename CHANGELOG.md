@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Product README / AGENTS rewrite; remove leftover ADRP operator files from this
+  repo; refresh shipped `program/` operator prose for `mycelium.toml` + CLI.
+
 ## [0.1.0] - 2026-08-15
 
 ### Added

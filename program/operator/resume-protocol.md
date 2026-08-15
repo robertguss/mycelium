@@ -4,8 +4,8 @@ When asked to resume the program, the Research Program Architect or repository
 agent must:
 
 1. Verify the working tree state.
-2. Read `research-program.toml`.
-3. Read `README.md`, `AGENTS.md`, the Blueprint, and the Charter.
+2. Read `mycelium.toml` and run `mycelium status` (or `mycelium check`).
+3. Read `README.md`, `AGENTS.md`, and any accepted Blueprint / Charter.
 4. Confirm every stage marked `accepted` has a valid artifact and accepting
    commit (when commits are used).
 5. Detect placeholders incorrectly marked complete.
@@ -20,7 +20,7 @@ agent must:
 
 **Do not infer completion from chat history.**
 
-Helpers: `just status`, `just check`.
+Helpers: `mycelium status`, `mycelium check`.
 
 ## Stage statuses
 
@@ -60,7 +60,7 @@ A stage becomes `accepted` only when:
 2. Artifact metadata is complete.
 3. Independent validation gate passes.
 4. Artifact is committed (human/git workflow).
-5. Manifest records the accepting commit.
+5. Manifest / log records the accepting commit when used.
 6. Required human approval has been obtained.
 
 ## Unlock rule

@@ -7,7 +7,7 @@ all applicable items are true.
 
 - [ ] Git is the durable system of record
 - [ ] Repository follows the standard layout
-- [ ] `research-program.toml` exists and validates
+- [ ] `mycelium.toml` exists and validates
 - [ ] Fresh sessions are mandatory
 - [ ] Human approval gates are defined
 - [ ] Rigor tier is approved

@@ -3,7 +3,7 @@
 Every program follows this spine:
 
 ```text
-just init (working title)
+mycelium new idea (working title)
         ↓
 Discovery interview
         ↓
@@ -34,8 +34,8 @@ Final revised implementation plan
 Program closure and implementation handoff
 ```
 
-Repository structure is bootstrapped by this template; `just init` only names
-the project. Discovery still precedes Blueprint acceptance.
+Repository structure is scaffolded by `mycelium new idea`. Discovery still
+precedes Blueprint acceptance.
 
 ## Risk-triggered additional review
 

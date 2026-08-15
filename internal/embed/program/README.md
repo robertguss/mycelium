@@ -1,8 +1,9 @@
 # Research Program Methodology
 
-This directory is the **methodology library** for the artifact-driven research
-program. It redistributes the v1 master specification into three layers so
-agents and humans can attach only what each stage needs—without losing rigor.
+This directory is the **methodology library** shipped into idea repos by the
+`mycelium` CLI. It redistributes the artifact-driven research program into
+layers so agents and humans can attach only what each stage needs—without
+losing rigor.
 
 ## Layers
 
@@ -16,14 +17,14 @@ agents and humans can attach only what each stage needs—without losing rigor.
 ## Authority
 
 1. Accepted `DEC-###` records that supersede earlier authority
-2. Locked decisions in `docs/00-program-blueprint.md`
-3. Normative rules in `docs/01-research-charter.md`
+2. Locked decisions in the Program Blueprint (when the instance uses one)
+3. Normative rules in the Research Charter (when the instance uses one)
 4. The commissioning prompt for the current stage
 5. Current accepted revised definitive specification
 6. Accepted focused research reports (evidence and recommendations)
 7. Adversarial reviews (proposed corrections)
 8. Current accepted revised implementation plan
-9. `research-program.toml` (operational index only)
+9. `mycelium.toml` (operational index only; DEC-012)
 10. Community convention
 11. Model or reviewer preference
 
@@ -34,7 +35,7 @@ See [`contracts/authority-and-precedence.md`](contracts/authority-and-precedence
 ## Fixed governance spine
 
 ```text
-Init (just init) → Discovery → Blueprint → Charter
+mycelium new idea → Discovery → Blueprint → Charter
   → Adaptive focused-research graph
   → Optional replication / reconciliation
   → Chief Architect synthesis → Spec adversarial review → Revised spec
@@ -44,11 +45,15 @@ Init (just init) → Discovery → Blueprint → Charter
 
 Details: [`reference/governance-spine.md`](reference/governance-spine.md).
 
-## Project-facing tree
+## Idea-repo tree
 
-Project artifacts live at the repository root (`README.md`, `AGENTS.md`,
-`research-program.toml`, `decisions/`, `docs/`). This `program/` tree is
+Idea artifacts live at the instance root (`README.md`, `AGENTS.md`,
+`mycelium.toml`, type homes, `docs/` as needed). This `program/` tree is
 methodology; do not put project conclusions here.
+
+Create an idea with `mycelium new idea`. The instance operational index is
+`mycelium.toml`. Operate with the `mycelium` CLI (`check`, `status`, `state`,
+`wake`, `handoff`, …).
 
 ## Fresh-session rule
 
@@ -59,14 +64,12 @@ substantive stages in one context.
 
 ## Skills
 
-Agent entry points (thin; they point here):
-
-- `.agents/skills/research-program/` — discovery, resume, next stage
-- `.agents/skills/research-stage/` — just-in-time stage package
-- `.agents/skills/research-validate/` — independent validation gate
+New scaffolds emit mycelium skills under `.agents/skills/` (see
+`program/skeleton/AGENTS.md`). Prefer those entry points when your agent
+supports skills; otherwise follow the instance `AGENTS.md` and this `program/`
+tree.
 
 ## Version
 
-- **Methodology version:** 1.0
-- **Source:** Redistributed from Artifact-Driven Research Program master spec v1.0
-- **Status:** Accepted reusable workflow (template form)
+- **Methodology version:** 2.0.0
+- **Status:** Shipped with the mycelium CLI into idea instances
