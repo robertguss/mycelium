@@ -1,0 +1,1 @@
+# Stub so //go:embed all:program succeeds before Slice 2 content lands.
