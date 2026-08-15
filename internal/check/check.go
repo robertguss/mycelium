@@ -20,6 +20,7 @@ import (
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/metadata"
 	"github.com/robertguss/mycelium/internal/op"
+	"github.com/robertguss/mycelium/internal/pack"
 	"github.com/robertguss/mycelium/internal/revisit"
 	"github.com/robertguss/mycelium/internal/schema"
 	"github.com/robertguss/mycelium/internal/sparring"
@@ -124,8 +125,23 @@ func Run(root string) Result {
 		homes[s.Home] = struct{}{}
 	}
 
+	packResult, err := pack.Discover(filepath.Join(root, "program"))
+	if err != nil {
+		add(fmt.Sprintf("cannot load packs: %v", err), "pack", "program/contracts/conformance.md", "restore program/packs/ or program/templates/")
+		return r
+	}
+	for _, c := range packResult.Collisions {
+		add(
+			c.Message(),
+			"pack-collision",
+			"program/contracts/conformance.md",
+			"remove the colliding pack directory",
+		)
+	}
+	reviewsOK := pack.ReviewsAllowed(packResult.Packs)
+
 	checkTierBinds(root, m.Tier, add)
-	checkTopLevel(root, m, homes, add)
+	checkTopLevel(root, m, homes, reviewsOK, add)
 	checkIndex(root, add)
 
 	index := buildArtifactIndex(root, schemas, &r, add)
@@ -273,7 +289,7 @@ func checkTierBinds(root, tier string, add func(string, string, string, string))
 	}
 }
 
-func checkTopLevel(root string, m manifest.Manifest, homes map[string]struct{}, add func(string, string, string, string)) {
+func checkTopLevel(root string, m manifest.Manifest, homes map[string]struct{}, reviewsAllowed bool, add func(string, string, string, string)) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		add(fmt.Sprintf("cannot read instance root: %v", err), "conformance", "program/contracts/conformance.md", "ensure the instance directory is readable")
@@ -282,7 +298,9 @@ func checkTopLevel(root string, m manifest.Manifest, homes map[string]struct{}, 
 	declared := map[string]struct{}{}
 	for _, d := range m.Deviations {
 		if strings.HasPrefix(d.Convention, "extra-top-level:") {
-			declared[strings.TrimPrefix(d.Convention, "extra-top-level:")] = struct{}{}
+			key := strings.TrimPrefix(d.Convention, "extra-top-level:")
+			declared[key] = struct{}{}
+			declared[strings.TrimSuffix(key, "/")] = struct{}{}
 		}
 		if d.Convention == "" || d.Reason == "" {
 			add("deviation row missing convention or reason", "deviation", "program/contracts/manifest.md", "fill convention and reason on every [[deviations]] row")
@@ -296,7 +314,19 @@ func checkTopLevel(root string, m manifest.Manifest, homes map[string]struct{}, 
 		if _, ok := homes[name]; ok {
 			continue
 		}
+		if name == "reviews" && reviewsAllowed {
+			continue
+		}
 		if _, ok := declared[name]; ok {
+			continue
+		}
+		if name == "reviews" && !reviewsAllowed {
+			add(
+				"extra top-level path reviews/ (council pack absent)",
+				"extra-top-level",
+				"program/contracts/conformance.md",
+				"delete reviews/, restore program/packs/council/, or declare extra-top-level:reviews/",
+			)
 			continue
 		}
 		add(
