@@ -20,3 +20,8 @@ status:
 # Sanity-check tree, placeholders vs accepted stages, required paths
 check:
     python3 scripts/check_program.py
+
+# Build checksummed release binaries (linux-amd64 + darwin-arm64). No tag/upload.
+# Usage: just release version=0.1.0
+release version:
+    bash scripts/release.sh {{quote(version)}}
