@@ -167,10 +167,6 @@ func TestRegisteredSchemasAndTemplates(t *testing.T) {
 				t.Fatal("template must start with +++")
 			}
 			for _, tok := range []string{"{{ID}}", "{{TITLE}}", "{{SLUG}}", "{{DATE}}"} {
-				if tok == "{{SLUG}}" {
-					// SLUG may be unused in body until generator fills filename;
-					// brief requires templates contain all four tokens.
-				}
 				if !strings.Contains(text, tok) {
 					t.Errorf("template missing token %s", tok)
 				}
