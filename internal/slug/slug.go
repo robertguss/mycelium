@@ -15,8 +15,8 @@ var ErrEmpty = errors.New("slug: empty")
 // ErrReserved is returned for "." and "..".
 var ErrReserved = errors.New("slug: reserved")
 
-// latinFold maps common precomposed Latin letters to ASCII bases.
-// Dependency floor forbids x/text; this covers accent tests without NFKD.
+// latinFold maps common precomposed Latin letters to ASCII.
+// Dependency floor allows only go-toml; no x/text NFKD.
 var latinFold = map[rune]string{
 	'À': "a", 'Á': "a", 'Â': "a", 'Ã': "a", 'Ä': "a", 'Å': "a",
 	'à': "a", 'á': "a", 'â': "a", 'ã': "a", 'ä': "a", 'å': "a",
