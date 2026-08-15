@@ -2,10 +2,16 @@ package cli_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robertguss/mycelium/internal/cli"
+	"github.com/robertguss/mycelium/internal/clock"
+	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/version"
 )
 
@@ -21,7 +27,7 @@ func TestVersionStdoutEquality(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := cli.Run(tc.argv, &stdout, &stderr)
+			code := cli.Run(tc.argv, &stdout, &stderr, cli.Deps{})
 			if code != 0 {
 				t.Fatalf("exit %d; stderr=%q", code, stderr.String())
 			}
@@ -45,7 +51,7 @@ func TestHelpExitsZero(t *testing.T) {
 	for _, argv := range cases {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := cli.Run(argv, &stdout, &stderr)
+			code := cli.Run(argv, &stdout, &stderr, cli.Deps{})
 			if code != 0 {
 				t.Fatalf("exit %d; stderr=%q", code, stderr.String())
 			}
@@ -58,7 +64,7 @@ func TestHelpExitsZero(t *testing.T) {
 
 func TestUnknownCommandTeachingError(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := cli.Run([]string{"mycelium", "not-a-command"}, &stdout, &stderr)
+	code := cli.Run([]string{"mycelium", "not-a-command"}, &stdout, &stderr, cli.Deps{})
 	if code != 1 {
 		t.Fatalf("exit %d want 1", code)
 	}
@@ -78,10 +84,10 @@ func TestUnknownCommandTeachingError(t *testing.T) {
 }
 
 func TestPhase01NotImplementedTeachingError(t *testing.T) {
-	for _, cmd := range []string{"new", "check", "tier", "publish"} {
+	for _, cmd := range []string{"check", "tier", "publish"} {
 		t.Run(cmd, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := cli.Run([]string{"mycelium", cmd}, &stdout, &stderr)
+			code := cli.Run([]string{"mycelium", cmd}, &stdout, &stderr, cli.Deps{})
 			if code != 1 {
 				t.Fatalf("exit %d want 1", code)
 			}
@@ -89,11 +95,80 @@ func TestPhase01NotImplementedTeachingError(t *testing.T) {
 			if !strings.Contains(errText, "not implemented in this slice") {
 				t.Fatalf("stderr=%q", errText)
 			}
-			for _, prefix := range []string{"mycelium:", "convention:", "contract:", "fix:"} {
-				if !strings.Contains(errText, prefix) {
-					t.Fatalf("missing %q in %q", prefix, errText)
-				}
-			}
 		})
+	}
+	t.Run("new type", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		code := cli.Run([]string{"mycelium", "new", "decision", "X"}, &stdout, &stderr, cli.Deps{})
+		if code != 1 {
+			t.Fatalf("exit %d want 1", code)
+		}
+		if !strings.Contains(stderr.String(), "not implemented in this slice") {
+			t.Fatalf("stderr=%q", stderr.String())
+		}
+	})
+}
+
+func TestCLINewIdeaOffline(t *testing.T) {
+	root := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", "CLI Spark", "--offline"},
+		&stdout, &stderr,
+		cli.Deps{
+			Clock:     clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
+			Runner:    rec,
+			Getwd:     func() (string, error) { return root, nil },
+			LookupEnv: func(string) string { return "" },
+		},
+	)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	inst := filepath.Join(root, "cli-spark")
+	b, err := os.ReadFile(filepath.Join(inst, "mycelium.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.Parse(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.State != "spark" || m.Tier != "focused" {
+		t.Fatalf("%+v", m)
+	}
+	if rec.Called("gh") {
+		t.Fatal("gh invoked")
+	}
+	if version.Version != "0.1.0-dev" {
+		t.Fatalf("version=%q", version.Version)
+	}
+}
+
+func TestCLINewIdeaMYCELIUM_OFFLINE(t *testing.T) {
+	root := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", "Env Offline"},
+		&stdout, &stderr,
+		cli.Deps{
+			Clock:  clock.Fixed{T: time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)},
+			Runner: rec,
+			Getwd:  func() (string, error) { return root, nil },
+			LookupEnv: func(k string) string {
+				if k == "MYCELIUM_OFFLINE" {
+					return "1"
+				}
+				return ""
+			},
+		},
+	)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if rec.Called("gh") {
+		t.Fatal("gh invoked under MYCELIUM_OFFLINE=1")
 	}
 }

@@ -7,6 +7,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/robertguss/mycelium/internal/clock"
+	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/scaffold"
+	"github.com/robertguss/mycelium/internal/teach"
 	"github.com/robertguss/mycelium/internal/version"
 )
 
@@ -14,19 +18,41 @@ const usage = `mycelium — convention-over-configuration thinking CLI
 
 Usage:
   mycelium version
+  mycelium new idea <name> [--dir PATH] [--offline] [--publish] [--tier focused|standard|high-assurance]
   mycelium -h | --help
 
-PHASE-01 commands (later slices): new, check, tier, publish
+PHASE-01 commands (later slices): check, tier, publish, new <type>
 `
 
-// Main runs the CLI with argv (os.Args style: argv[0] is the program name).
-// Exit 0 on success, 1 on failure.
-func Main(argv []string) int {
-	return Run(argv, os.Stdout, os.Stderr)
+// Deps are injectable collaborators for hermetic tests.
+type Deps struct {
+	Clock     clock.Clock
+	Runner    execrun.Runner
+	LookupEnv func(string) string
+	Getwd     func() (string, error)
 }
 
-// Run is Main with injectable stdout/stderr for hermetic tests.
-func Run(argv []string, stdout, stderr io.Writer) int {
+// Main runs the CLI with argv (os.Args style: argv[0] is the program name).
+// Exit 0 on success, exit 1 on failure.
+func Main(argv []string) int {
+	return Run(argv, os.Stdout, os.Stderr, Deps{})
+}
+
+// Run is Main with injectable stdout/stderr and deps.
+func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
+	if deps.LookupEnv == nil {
+		deps.LookupEnv = os.Getenv
+	}
+	if deps.Getwd == nil {
+		deps.Getwd = os.Getwd
+	}
+	if deps.Clock == nil {
+		deps.Clock = clock.System()
+	}
+	if deps.Runner == nil {
+		deps.Runner = execrun.Real{}
+	}
+
 	args := argv[1:]
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
 		fmt.Fprint(stdout, usage)
@@ -40,15 +66,17 @@ func Run(argv []string, stdout, stderr io.Writer) int {
 	case "help":
 		fmt.Fprint(stdout, usage)
 		return 0
-	case "new", "check", "tier", "publish":
-		return teach(stderr,
+	case "new":
+		return cmdNew(args[1:], stdout, stderr, deps)
+	case "check", "tier", "publish":
+		return teach.Write(stderr,
 			fmt.Sprintf("%q is not implemented in this slice", cmd),
 			"phase-01-slice-order",
 			"framework/phases/PHASE-01-implementation-brief.md",
-			"use mycelium version; wait for the slice that ships this command",
+			"use mycelium version or mycelium new idea --offline; wait for the slice that ships this command",
 		)
 	default:
-		return teach(stderr,
+		return teach.Write(stderr,
 			fmt.Sprintf("unknown command %q", cmd),
 			"command-surface",
 			"framework/phases/PHASE-01-implementation-brief.md",
@@ -64,7 +92,7 @@ func cmdVersion(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, "Usage: mycelium version")
 			return 0
 		}
-		return teach(stderr,
+		return teach.Write(stderr,
 			fmt.Sprintf("version accepts no arguments (got %q)", strings.Join(args, " ")),
 			"command-flags",
 			"framework/phases/PHASE-01-implementation-brief.md",
@@ -75,10 +103,112 @@ func cmdVersion(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func teach(stderr io.Writer, what, convention, contract, fix string) int {
-	fmt.Fprintf(stderr, "mycelium: %s\n", what)
-	fmt.Fprintf(stderr, "convention: %s\n", convention)
-	fmt.Fprintf(stderr, "contract: %s\n", contract)
-	fmt.Fprintf(stderr, "fix: %s\n", fix)
-	return 1
+func cmdNew(args []string, stdout, stderr io.Writer, deps Deps) int {
+	if len(args) == 0 {
+		return teach.Write(stderr,
+			"new requires a subcommand: idea or a registered type",
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			`try: mycelium new idea "My idea" --offline`,
+		)
+	}
+	if args[0] == "idea" {
+		return cmdNewIdea(args[1:], stdout, stderr, deps)
+	}
+	return teach.Write(stderr,
+		fmt.Sprintf("new %q is not implemented in this slice", args[0]),
+		"phase-01-slice-order",
+		"framework/phases/PHASE-01-implementation-brief.md",
+		"use mycelium new idea --offline; generator types land in a later slice",
+	)
+}
+
+func cmdNewIdea(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseNewIdeaFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, "Usage: mycelium new idea <name> [--dir PATH] [--offline] [--publish] [--tier focused|standard|high-assurance]")
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			`usage: mycelium new idea <name> [--dir PATH] [--offline] [--publish] [--tier focused|standard|high-assurance]`,
+		)
+	}
+	off := opts.offline || scaffold.OfflineFromEnv(deps.LookupEnv)
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+
+	argv := append([]string{"new", "idea"}, args...)
+	return scaffold.Run(scaffold.Options{
+		Name:    opts.name,
+		Dir:     opts.dir,
+		Offline: off,
+		Publish: opts.publish,
+		Tier:    opts.tier,
+		Cwd:     cwd,
+		Argv:    argv,
+	}, scaffold.Deps{
+		Clock:  deps.Clock,
+		Runner: deps.Runner,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
+var errHelp = fmt.Errorf("help")
+
+type newIdeaFlags struct {
+	name    string
+	dir     string
+	offline bool
+	publish bool
+	tier    string
+}
+
+func parseNewIdeaFlags(args []string) (newIdeaFlags, error) {
+	out := newIdeaFlags{tier: "focused"}
+	var nameParts []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--offline":
+			out.offline = true
+		case a == "--publish":
+			out.publish = true
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case a == "--tier":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--tier requires a value")
+			}
+			i++
+			out.tier = args[i]
+		case strings.HasPrefix(a, "--tier="):
+			out.tier = strings.TrimPrefix(a, "--tier=")
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			nameParts = append(nameParts, a)
+		}
+	}
+	out.name = strings.TrimSpace(strings.Join(nameParts, " "))
+	return out, nil
 }
