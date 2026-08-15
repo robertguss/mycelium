@@ -2,13 +2,17 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/scaffold"
 	"github.com/robertguss/mycelium/internal/teach"
 	"github.com/robertguss/mycelium/internal/version"
@@ -19,9 +23,10 @@ const usage = `mycelium — convention-over-configuration thinking CLI
 Usage:
   mycelium version
   mycelium new idea <name> [--dir PATH] [--offline] [--publish] [--tier focused|standard|high-assurance]
+  mycelium check [--dir PATH] [--abort-journal]
   mycelium -h | --help
 
-PHASE-01 commands (later slices): check, tier, publish, new <type>
+PHASE-01 commands (later slices): tier, publish, new <type>
 `
 
 // Deps are injectable collaborators for hermetic tests.
@@ -68,12 +73,14 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return 0
 	case "new":
 		return cmdNew(args[1:], stdout, stderr, deps)
-	case "check", "tier", "publish":
+	case "check":
+		return cmdCheck(args[1:], stdout, stderr, deps)
+	case "tier", "publish":
 		return teach.Write(stderr,
 			fmt.Sprintf("%q is not implemented in this slice", cmd),
 			"phase-01-slice-order",
 			"framework/phases/PHASE-01-implementation-brief.md",
-			"use mycelium version or mycelium new idea --offline; wait for the slice that ships this command",
+			"use mycelium version, mycelium new idea --offline, or mycelium check; wait for the slice that ships this command",
 		)
 	default:
 		return teach.Write(stderr,
@@ -165,6 +172,86 @@ func cmdNewIdea(args []string, stdout, stderr io.Writer, deps Deps) int {
 	})
 }
 
+func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseCheckFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, "Usage: mycelium check [--dir PATH] [--abort-journal]")
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"usage: mycelium check [--dir PATH] [--abort-journal]",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	start := cwd
+	if opts.dir != "" {
+		if filepath.IsAbs(opts.dir) {
+			start = opts.dir
+		} else {
+			start = filepath.Join(cwd, opts.dir)
+		}
+	}
+	root, err := check.FindRoot(start)
+	if err != nil {
+		return teach.Write(stderr,
+			"not a mycelium instance (no mycelium.toml found)",
+			"instance-root",
+			"program/contracts/manifest.md",
+			"run from an instance directory or pass --dir PATH",
+		)
+	}
+
+	if opts.abort {
+		if err := check.AbortJournal(root, stdout); err != nil {
+			if errors.Is(err, op.ErrNothingToAbort) {
+				return teach.Write(stderr,
+					"nothing to abort (no journal, stale lock, or orphan stage)",
+					"operation-protocol",
+					"program/contracts/operation-protocol.md",
+					"no action needed",
+				)
+			}
+			if errors.Is(err, op.ErrLocked) {
+				return teach.Write(stderr,
+					fmt.Sprintf("lock held by another process: %v", err),
+					"operation-protocol",
+					"program/contracts/operation-protocol.md",
+					"wait for the other process to finish; do not abort under a live lock",
+				)
+			}
+			return teach.Write(stderr,
+				fmt.Sprintf("abort failed: %v", err),
+				"operation-protocol",
+				"program/contracts/operation-protocol.md",
+				"inspect .mycelium/ and retry",
+			)
+		}
+		return 0
+	}
+
+	r := check.Run(root)
+	if r.LiveLockNotice != "" {
+		fmt.Fprintln(stdout, r.LiveLockNotice)
+	}
+	if !r.OK {
+		return teach.WriteFindings(stderr, r.Findings)
+	}
+	check.WriteOK(stdout, r)
+	return 0
+}
+
 var errHelp = fmt.Errorf("help")
 
 type newIdeaFlags struct {
@@ -173,6 +260,37 @@ type newIdeaFlags struct {
 	offline bool
 	publish bool
 	tier    string
+}
+
+type checkFlags struct {
+	dir   string
+	abort bool
+}
+
+func parseCheckFlags(args []string) (checkFlags, error) {
+	var out checkFlags
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--abort-journal":
+			out.abort = true
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			return out, fmt.Errorf("unexpected argument %q", a)
+		}
+	}
+	return out, nil
 }
 
 func parseNewIdeaFlags(args []string) (newIdeaFlags, error) {
