@@ -110,3 +110,35 @@ func hasExactH3(section, h3 string) bool {
 	}
 	return false
 }
+
+func HasGlossaryH1(content string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		if strings.TrimRight(line, "\r") == "# Glossary" {
+			return true
+		}
+	}
+	return false
+}
+
+func MissingGlossaryDefinitions(content string) []string {
+	var missing []string
+	for _, term := range glossaryH2Terms(content) {
+		sec := SectionBody(content, term)
+		if !hasExactH3(sec, "Definition") {
+			missing = append(missing, term)
+		}
+	}
+	return missing
+}
+
+func glossaryH2Terms(content string) []string {
+	var terms []string
+	for _, line := range strings.Split(content, "\n") {
+		trim := strings.TrimRight(line, "\r")
+		if !strings.HasPrefix(trim, "## ") {
+			continue
+		}
+		terms = append(terms, strings.TrimPrefix(trim, "## "))
+	}
+	return terms
+}

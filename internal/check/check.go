@@ -131,6 +131,7 @@ func Run(root string) Result {
 	index := buildArtifactIndex(root, schemas, &r, add)
 	checkFrontMatterAndSections(root, index, schemaByHome, add)
 	checkQuestionSparring(root, index, add)
+	checkGlossary(root, add)
 	checkStageScoped(m, index, schemaByHome, add)
 	logBytes := checkLog(root, add)
 	checkWakeBrief(root, logBytes, add)
@@ -540,6 +541,30 @@ func sparringTeach(id, miss string) (what, fix string) {
 	}
 	return fmt.Sprintf("%s missing %s (required when agreement=agree-to-disagree)", id, miss),
 		fmt.Sprintf("add %s with ### Human and ### Agent", miss)
+}
+
+func checkGlossary(root string, add func(string, string, string, string)) {
+	b, err := os.ReadFile(filepath.Join(root, "CONTEXT.md"))
+	if err != nil {
+		return
+	}
+	content := string(b)
+	if !sparring.HasGlossaryH1(content) {
+		add(
+			"CONTEXT.md missing H1 # Glossary",
+			"glossary",
+			"program/contracts/glossary.md",
+			"add a line that is exactly # Glossary",
+		)
+	}
+	for _, term := range sparring.MissingGlossaryDefinitions(content) {
+		add(
+			fmt.Sprintf("CONTEXT.md term %q missing ### Definition", term),
+			"glossary",
+			"program/contracts/glossary.md",
+			fmt.Sprintf("add ### Definition under ## %s", term),
+		)
+	}
 }
 
 func checkStageScoped(m manifest.Manifest, arts []artifactFile, byHome map[string]schema.Schema, add func(string, string, string, string)) {

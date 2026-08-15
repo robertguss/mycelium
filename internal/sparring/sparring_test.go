@@ -294,3 +294,47 @@ func TestSectionBody(t *testing.T) {
 		t.Fatalf("Reasons body pulled prior section: %q", reasons)
 	}
 }
+
+func TestHasGlossaryH1(t *testing.T) {
+	t.Parallel()
+	if !sparring.HasGlossaryH1("# Glossary\n") {
+		t.Fatal("H1-only should have glossary H1")
+	}
+	if !sparring.HasGlossaryH1("preamble\n# Glossary\n## SQLite\n") {
+		t.Fatal("H1 after preamble should match")
+	}
+	if sparring.HasGlossaryH1("# glossary\n") {
+		t.Fatal("case mismatch must miss")
+	}
+	if sparring.HasGlossaryH1("## Glossary\n") {
+		t.Fatal("H2 must not count as H1")
+	}
+	if sparring.HasGlossaryH1("# Glossary Extra\n") {
+		t.Fatal("exact line only")
+	}
+}
+
+func TestMissingGlossaryDefinitions(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		body string
+		want []string
+	}{
+		{"h1-only", "# Glossary\n", nil},
+		{"h2-without-definition", "# Glossary\n\n## SQLite\n", []string{"SQLite"}},
+		{"h2-with-definition-fill", "# Glossary\n\n## SQLite\n\n### Definition\n\n<!-- fill -->\n", nil},
+		{"h2-with-one-word", "# Glossary\n\n## Term\n\n### Definition\n\nx\n", nil},
+		{"definition-after-next-h2", "# Glossary\n\n## SQLite\n\n## Postgres\n\n### Definition\n\nok\n", []string{"SQLite"}},
+		{"h3-wrong-name", "# Glossary\n\n## SQLite\n\n### Def\n\nok\n", []string{"SQLite"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := sparring.MissingGlossaryDefinitions(tc.body)
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("MissingGlossaryDefinitions=%v want %v", got, tc.want)
+			}
+		})
+	}
+}

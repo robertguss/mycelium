@@ -629,3 +629,81 @@ func TestSparkZeroQuestionsPasses(t *testing.T) {
 		t.Fatalf("artifacts=%d want 0", r.Artifacts)
 	}
 }
+
+func TestGlossaryH1OnlyPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice3 H1 Only")
+	if err := os.WriteFile(filepath.Join(root, "CONTEXT.md"), []byte("# Glossary\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+}
+
+func TestGlossaryTermMissingDefinitionFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice3 Missing Def")
+	if err := os.WriteFile(filepath.Join(root, "CONTEXT.md"), []byte("# Glossary\n\n## SQLite\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail: term missing ### Definition")
+	}
+	if !findingHas(r.Findings, `CONTEXT.md term "SQLite" missing ### Definition`, "glossary", "program/contracts/glossary.md") {
+		t.Fatalf("want glossary teaching shape, got %v", r.Findings)
+	}
+}
+
+func TestGlossaryTermWithFillDefinitionPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice3 Fill Def")
+	body := "# Glossary\n\n## SQLite\n\n### Definition\n\n<!-- fill -->\n"
+	if err := os.WriteFile(filepath.Join(root, "CONTEXT.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+}
+
+func TestGlossaryMissingH1Fails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice3 Missing H1")
+	if err := os.WriteFile(filepath.Join(root, "CONTEXT.md"), []byte("## SQLite\n\n### Definition\n\nx\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail: missing H1")
+	}
+	if !findingHas(r.Findings, "CONTEXT.md missing H1 # Glossary", "glossary", "program/contracts/glossary.md") {
+		t.Fatalf("want missing-H1 teaching shape, got %v", r.Findings)
+	}
+}
+
+func TestGlossaryMissingFileNoNewBind(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice3 No Context")
+	tierPath := filepath.Join(root, "program", "tiers", "focused.toml")
+	tb, err := os.ReadFile(tierPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	patched := strings.ReplaceAll(string(tb), `"CONTEXT.md", `, "")
+	patched = strings.ReplaceAll(patched, `, "CONTEXT.md"`, "")
+	patched = strings.ReplaceAll(patched, `"CONTEXT.md"`, "")
+	if err := os.WriteFile(tierPath, []byte(patched), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, "CONTEXT.md")); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass without CONTEXT.md (no glossary required-file bind), findings=%v", r.Findings)
+	}
+	for _, f := range r.Findings {
+		if f.Convention == "glossary" {
+			t.Fatalf("glossary must not fire when CONTEXT.md absent: %v", f)
+		}
+	}
+}
