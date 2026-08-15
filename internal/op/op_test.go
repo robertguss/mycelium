@@ -312,32 +312,116 @@ func TestResumeMarksDoneWhenDestExistsSourceGone(t *testing.T) {
 	}
 }
 
-func TestCommitRefusesWhenBothExist(t *testing.T) {
+func TestCommitReplacesExistingDestination(t *testing.T) {
 	root := t.TempDir()
 	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer s.Close()
-	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001.md", Content: []byte("a")}}); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "log.md"), []byte("old\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	j := s.Journal()
-	from := filepath.Join(root, filepath.FromSlash(j.Renames[0].From))
-	to := filepath.Join(root, filepath.FromSlash(j.Renames[0].To))
-	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "mycelium.toml"), []byte("old-m\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(to, []byte("other"), 0o644); err != nil {
+	if err := s.Stage([]op.Staged{
+		{RelTo: "log.md", Content: []byte("new\n")},
+		{RelTo: "mycelium.toml", Content: []byte("new-m\n")},
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(from); err != nil {
+	if err := s.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(root, "log.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "new\n" {
+		t.Fatalf("log.md got %q", b)
+	}
+	b, err = os.ReadFile(filepath.Join(root, "mycelium.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "new-m\n" {
+		t.Fatalf("mycelium.toml got %q", b)
+	}
+}
+
+func TestCommitRefusesClobberREADME(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	readme := filepath.Join(root, "README.md")
+	if err := os.WriteFile(readme, []byte("KEEP-README-BYTES\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Stage([]op.Staged{{RelTo: "README.md", Content: []byte("PWNED-README\n")}}); err != nil {
 		t.Fatal(err)
 	}
 	err = s.Commit()
-	if err == nil {
-		t.Fatal("want conflict when both exist")
+	if !errors.Is(err, op.ErrRenameConflict) {
+		t.Fatalf("want ErrRenameConflict, got %v", err)
 	}
+	b, err := os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "KEEP-README-BYTES\n" {
+		t.Fatalf("README.md clobbered: %q", b)
+	}
+	_ = s.Close()
+
+	// Resume leftover journal: same refuse, README unchanged.
+	s2, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s2.Commit()
+	if !errors.Is(err, op.ErrRenameConflict) {
+		t.Fatalf("resume want ErrRenameConflict, got %v", err)
+	}
+	b, err = os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "KEEP-README-BYTES\n" {
+		t.Fatalf("README.md clobbered on resume: %q", b)
+	}
+	_ = s2.Close()
+}
+
+func TestCommitRefusesClobberExistingDEC(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(root, "decisions", "DEC-001-keep-this.md")
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dest, []byte("KEEP-THIS-DEC\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001-keep-this.md", Content: []byte("PWNED-DEC\n")}}); err != nil {
+		t.Fatal(err)
+	}
+	err = s.Commit()
+	if !errors.Is(err, op.ErrRenameConflict) {
+		t.Fatalf("want ErrRenameConflict, got %v", err)
+	}
+	b, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "KEEP-THIS-DEC\n" {
+		t.Fatalf("DEC clobbered: %q", b)
+	}
+	_ = s.Close()
 }
 
 func TestAbortRefusesLiveLock(t *testing.T) {

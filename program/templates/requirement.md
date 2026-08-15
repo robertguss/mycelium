@@ -3,7 +3,7 @@ id = "{{ID}}"
 title = "{{TITLE}}"
 priority = "Must"
 date = "{{DATE}}"
-phase = ""
+phase = "TBD"
 +++
 
 # {{ID}} — {{TITLE}}

@@ -19,6 +19,7 @@ var (
 	ErrPartialCommit   = errors.New("op: cannot rollback after partial commit")
 	ErrLocked          = errors.New("op: lock held")
 	ErrPathEscape      = errors.New("op: path escape")
+	ErrRenameConflict  = errors.New("op: rename conflict")
 )
 
 // Intent describes a mutating operation before staging.
@@ -226,7 +227,7 @@ func (s *Session) commitN(max int) (int, error) {
 		fromOK := fromErr == nil
 		toOK := toErr == nil
 
-		// Before Save: to exists and from does not → mark Done.
+		// Already committed (to exists, staged from gone) → mark Done.
 		if toOK && !fromOK {
 			s.journal.Renames[i].Done = true
 			applied++
@@ -235,15 +236,14 @@ func (s *Session) commitN(max int) (int, error) {
 			}
 			continue
 		}
-		// Both exist → refuse.
-		if toOK && fromOK {
-			_ = journal.Save(s.root, s.journal)
-			return applied, fmt.Errorf("op: rename conflict: both %s and %s exist", from, to)
-		}
-		// From exists → Rename, then mark Done and Save.
 		if !fromOK {
 			_ = journal.Save(s.root, s.journal)
 			return applied, fmt.Errorf("op: missing staged source %s", from)
+		}
+		// Replace existing To only for log.md / mycelium.toml (generator updates).
+		if toOK && !allowReplace(toRel) {
+			_ = journal.Save(s.root, s.journal)
+			return applied, fmt.Errorf("%w: both %s and %s exist", ErrRenameConflict, from, to)
 		}
 		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 			_ = journal.Save(s.root, s.journal)
@@ -418,6 +418,13 @@ func validateContained(root, rel string) error {
 		return fmt.Errorf("%w: %q", ErrPathEscape, rel)
 	}
 	return nil
+}
+
+// allowReplace reports whether Commit may overwrite an existing destination.
+// Only log.md and mycelium.toml are updated in place by generators.
+func allowReplace(toRel string) bool {
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(toRel)))
+	return clean == "log.md" || clean == "mycelium.toml"
 }
 
 func validateOpID(id string) error {

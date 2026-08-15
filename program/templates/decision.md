@@ -3,7 +3,7 @@ id = "{{ID}}"
 title = "{{TITLE}}"
 status = "Proposed"
 date = "{{DATE}}"
-owner = ""
+owner = "TBD"
 +++
 
 # {{ID}} — {{TITLE}}
