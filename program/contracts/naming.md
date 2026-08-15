@@ -23,7 +23,7 @@ Example: `DEC-014` with slug `manifest-name` → `decisions/DEC-014-manifest-nam
 References matching
 
 ```text
-\b(DEC|ASM|EVD|SPK|FND|REC|REQ|OQ|RSK|PHASE|MS)-[0-9]+\b
+\b(DEC|ASM|EVD|SPK|FND|REC|REQ|OQ|RSK|PHASE|MS|CMP|RPT|RCL)-[0-9]+\b
 ```
 
 must resolve to exactly one matching file in that namespace's home directory.
@@ -43,8 +43,12 @@ must resolve to exactly one matching file in that namespace's home directory.
 | risk | `RSK` | `risks/` | `RSK-###-slug.md` | 3 | no |
 | phase | `PHASE` | `phases/` | `PHASE-##-slug.md` | 2 | no |
 | milestone | `MS` | `milestones/` | `MS-###-slug.md` | 3 | no |
+| commissioning | `CMP` | `reviews/commissioning/` | `CMP-###-slug.md` | 3 | no |
+| model-report | `RPT` | `reviews/reports/` | `RPT-###-slug.md` | 3 | no |
+| reconciliation | `RCL` | `reviews/reconciliations/` | `RCL-###-slug.md` | 3 | no |
 
-`PHASE` is **not** stage-scoped.
+`PHASE` is **not** stage-scoped. `CMP` / `RPT` / `RCL` are pack-owned and
+**not** stage-scoped.
 
 Directories are plural lowercase nouns, one artifact type each. IDs are
 `UPPER-###` (or `UPPER-##` for `PHASE`). Slugs are kebab-case.

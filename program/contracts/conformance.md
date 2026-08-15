@@ -3,7 +3,7 @@
 Structure only (DEC-005).
 Checks never grade prose or thinking quality.
 
-## Must-implement checks (17)
+## Must-implement checks (22)
 
 1. Manifest present (`mycelium.toml`) and parses; required fields valid per
    `program/contracts/manifest.md`.
@@ -36,20 +36,48 @@ Checks never grade prose or thinking quality.
     glossary legal.
 17. If a DEC contains `## Dissent`, the section must contain at least one
     resolvable `OQ-###` or `ASM-###`. Heading absent → pass.
+18. Pack presence-is-registration: load `program/packs/<name>/` when the
+    directory exists. Namespace, type-key, or home collision between packs
+    (or pack vs core) → FAIL.
+19. `reviews/` is an allowed top-level path only when
+    `program/packs/council/` is present. Without the pack and without
+    `reviews/`, core check still passes. Without the pack but with
+    `reviews/` leftover: FAIL extra-top-level unless deviation
+    `extra-top-level:reviews/`.
+20. When the pack is present and CMP files exist: required front matter +
+    H2s per `program/packs/council/contracts/commissioning.md`; `opt_in`
+    must be `true`; `cost_class` IFF `rung`; `adapter` enum.
+21. When the pack is present and RPT files exist: required front matter +
+    H2s including `Dissent`; `commissioning` resolves; `rung`/`adapter`
+    match the CMP; `prompt_sha256` equals the check-computed CMP hash.
+22. Rung cardinality per pack commissioning contract. RCL required H2s
+    including `Retained dissent`. `SEED-DISSENT` substring rule per pack
+    reconciliation contract. RCL `rung` is `council` only.
 
 ## Lift timing
 
-Items 1–14 stay as written (PHASE-02). Items 15–17 land by slice:
+Items 1–14 stay as written (PHASE-02). Items 15–17 landed by PHASE-03 slice:
 
 | Slice | Check behavior |
 | --- | --- |
-| 1 | Schema `required_sections` drops `Crux`. Schema-driven check stops requiring Crux on every OQ. **No** IFF bind yet. |
-| 2 | Check calls `internal/sparring` for each `questions/OQ-*.md`. IFF rules bind (item 15). |
-| 3 | `CONTEXT.md` glossary rules bind (item 16). |
-| 4 | Optional DEC Dissent rule binds (item 17). |
+| PHASE-03 Slice 1 | Schema `required_sections` drops `Crux`. Schema-driven check stops requiring Crux on every OQ. **No** IFF bind yet. |
+| PHASE-03 Slice 2 | Check calls `internal/sparring` for each `questions/OQ-*.md`. IFF rules bind (item 15). |
+| PHASE-03 Slice 3 | `CONTEXT.md` glossary rules bind (item 16). |
+| PHASE-03 Slice 4 | Optional DEC Dissent rule binds (item 17). |
+
+Items 18–22 land by PHASE-04 slice:
+
+| Slice | Check behavior |
+| --- | --- |
+| PHASE-04 Slice 1 | Pack presence + collision + `reviews/` extra-top-level (items 18–19). **No** CMP/RPT/RCL content checks yet. |
+| PHASE-04 Slice 2 | Pack schemas registered. Item 7 applies to pack types. `opt_in` must be *present* but "must be `true`" and cost-class IFF and hash and cardinality do **not** bind yet. `mycelium new` discovers pack types. |
+| PHASE-04 Slice 3 | Check calls `internal/ladder`. Items 20–22 IFF / hash / cardinality / `SEED-DISSENT` bind. |
+| PHASE-04 Slice 4 | Skills + adapters; no new check rule. |
+| PHASE-04 Slice 5 | MS-401 matrix fixtures in `go test ./...` **are** the gate. |
 
 Do not require a wake brief on instances that never simmered. Do not grade
-brief prose. Do not require N artifacts.
+brief prose. Do not require N artifacts. Do not add `reviews/` to the
+always-allowed top-level list this slice (Slice 1 binds that).
 
 ## What check must not do
 
@@ -67,6 +95,20 @@ brief prose. Do not require N artifacts.
 | Keep agreement history / fail a flip back to `open` | **No.** |
 | Add `think` / `spar` to the log-op regex | **No.** |
 | Call network / `gh` / read `GH_TOKEN` | **No.** |
+| Require the council pack | **No.** Core items 1–17 pass without it. |
+| Require any CMP / RPT / RCL | **No.** Spark with zero reviews still passes. |
+| Require a council to leave `spark` | **No.** |
+| Require `## Crux` changes or reopen DEC-007 | **No.** |
+| Grade Position / Findings / Dissent / Retained dissent / Prompt prose | **No.** DEC-005. |
+| Content-score reports or reconciliation method | **No.** |
+| Require distinct `model` strings | **No.** |
+| Read `~/.config/mycelium` or `$MYCELIUM_CONFIG` | **No.** |
+| Enforce panel size beyond council ≥2 | **No.** |
+| Require `panels.toml` to exist | **No.** |
+| Call a model / Cursor / network / `gh` / read `GH_TOKEN` | **No.** |
+| Add `council` / `replicate` / `ladder` to the log-op regex | **No.** |
+| Fail a lone CMP (no RPT yet) | **No.** WIP is legal. |
+| Treat OQ-006 as a council | **No.** |
 
 ## Teaching errors
 

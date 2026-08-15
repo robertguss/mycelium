@@ -17,8 +17,12 @@ Every substantive item receives a stable identifier.
 | `RSK-###` | Risks |
 | `PHASE-##` | Implementation phases |
 | `MS-###` | Implementation milestones |
+| `CMP-###` | Commissioning prompts (perspective ladder; not stage-scoped) |
+| `RPT-###` | Model reports (perspective ladder; not stage-scoped) |
+| `RCL-###` | Reconciliations (perspective ladder; not stage-scoped) |
 
 `ASM` and `EVD` are first-class required namespaces (not optional).
+`CMP`, `RPT`, and `RCL` are pack-owned (council pack); not stage-scoped.
 
 ## Allocation
 
