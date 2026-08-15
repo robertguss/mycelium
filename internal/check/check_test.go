@@ -233,13 +233,13 @@ func TestUndeclaredExtraTopLevel(t *testing.T) {
 
 func TestLegalNextTable(t *testing.T) {
 	cases := map[string][]string{
-		"spark":       {"exploring", "archived"},
-		"exploring":   {"simmering", "clarified", "archived"},
-		"simmering":   {"exploring", "archived"},
-		"clarified":   {"handed-off", "archived"},
-		"handed-off":  {"archived"},
-		"archived":    nil,
-		"nope":        nil,
+		"spark":      {"exploring", "archived"},
+		"exploring":  {"simmering", "clarified", "archived"},
+		"simmering":  {"exploring", "archived"},
+		"clarified":  {"archived"},
+		"handed-off": nil,
+		"archived":   nil,
+		"nope":       nil,
 	}
 	for from, want := range cases {
 		got := check.LegalNext(from)
