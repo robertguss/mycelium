@@ -312,31 +312,27 @@ func TestResumeMarksDoneWhenDestExistsSourceGone(t *testing.T) {
 	}
 }
 
-func TestCommitRefusesWhenBothExist(t *testing.T) {
+func TestCommitReplacesExistingDestination(t *testing.T) {
 	root := t.TempDir()
 	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer s.Close()
-	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001.md", Content: []byte("a")}}); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "log.md"), []byte("old\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	j := s.Journal()
-	from := filepath.Join(root, filepath.FromSlash(j.Renames[0].From))
-	to := filepath.Join(root, filepath.FromSlash(j.Renames[0].To))
-	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+	if err := s.Stage([]op.Staged{{RelTo: "log.md", Content: []byte("new\n")}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(to, []byte("other"), 0o644); err != nil {
+	if err := s.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(from); err != nil {
+	b, err := os.ReadFile(filepath.Join(root, "log.md"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	err = s.Commit()
-	if err == nil {
-		t.Fatal("want conflict when both exist")
+	if string(b) != "new\n" {
+		t.Fatalf("got %q", b)
 	}
 }
 
