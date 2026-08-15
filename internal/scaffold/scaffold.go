@@ -18,6 +18,7 @@ import (
 	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/op"
+	"github.com/robertguss/mycelium/internal/publish"
 	"github.com/robertguss/mycelium/internal/slug"
 	"github.com/robertguss/mycelium/internal/teach"
 	"github.com/robertguss/mycelium/internal/version"
@@ -105,14 +106,6 @@ func Run(opts Options, deps Deps) int {
 			"command-flags",
 			"framework/phases/PHASE-01-implementation-brief.md",
 			"use --offline for hermetic local scaffold, or --publish without --offline",
-		)
-	}
-	if opts.Publish {
-		return teach.Write(deps.Stderr,
-			`publish is not implemented in this slice`,
-			"phase-01-slice-order",
-			"framework/phases/PHASE-01-implementation-brief.md",
-			"use --offline for local scaffold; publish lands in a later slice",
 		)
 	}
 
@@ -328,8 +321,55 @@ func Run(opts Options, deps Deps) int {
 	fmt.Fprintf(deps.Stdout, "state: spark\n")
 	fmt.Fprintf(deps.Stdout, "tier: %s\n", tier)
 	fmt.Fprintf(deps.Stdout, "next: cd %s && mycelium new decision \"First thought\"\n", ideaSlug)
-	fmt.Fprintf(deps.Stdout, "publish: mycelium publish\n")
+
+	if opts.Offline {
+		fmt.Fprintln(deps.Stdout, "publish: mycelium publish")
+		return 0
+	}
+
+	mode := publish.ModeOptional
+	if opts.Publish {
+		mode = publish.ModeRequired
+	}
+	out := publish.Run(publish.Options{
+		Dir:   target,
+		Cwd:   target,
+		Mode:  mode,
+		Argv:  append([]string{"new", "idea"}, publishArgvTail(opts)...),
+		Quiet: true,
+	}, publish.Deps{
+		Clock:  deps.Clock,
+		Runner: deps.Runner,
+		Stdout: deps.Stdout,
+		Stderr: deps.Stderr,
+	})
+	if out.Code != 0 {
+		return out.Code
+	}
+	switch out.Kind {
+	case publish.KindPublished, publish.KindAlready:
+		fmt.Fprintf(deps.Stdout, "published: %s (topic: idea)\n", out.OwnerRepo)
+	default:
+		fmt.Fprintln(deps.Stdout, "publish: mycelium publish")
+	}
 	return 0
+}
+
+func publishArgvTail(opts Options) []string {
+	var tail []string
+	if opts.Name != "" {
+		tail = append(tail, opts.Name)
+	}
+	if opts.Dir != "" {
+		tail = append(tail, "--dir", opts.Dir)
+	}
+	if opts.Publish {
+		tail = append(tail, "--publish")
+	}
+	if opts.Tier != "" && opts.Tier != "focused" {
+		tail = append(tail, "--tier", opts.Tier)
+	}
+	return tail
 }
 
 func rollbackOrClose(sess *op.Session) {
