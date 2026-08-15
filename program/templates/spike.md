@@ -3,7 +3,7 @@ id = "{{ID}}"
 title = "{{TITLE}}"
 status = "Planned"
 date = "{{DATE}}"
-decision_at_stake = ""
+decision_at_stake = "TBD"
 +++
 
 # {{ID}} — {{TITLE}}
