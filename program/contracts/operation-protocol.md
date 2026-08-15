@@ -8,8 +8,8 @@ Applies to mutating multi-file commands:
 - `mycelium publish`
 
 Does **not** apply to `mycelium version` or `mycelium check`, except
-`mycelium check --abort-journal` which clears an interrupted journal after
-operator confirmation of abort intent.
+`mycelium check --abort-journal` which clears an interrupted journal (no
+confirmation step; see `program/contracts/conformance.md`).
 
 ## Steps
 

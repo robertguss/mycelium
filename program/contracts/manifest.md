@@ -1,7 +1,7 @@
 # Instance Manifest — mycelium.toml (Mycelium 2.0)
 
 Scaffolded instances use `mycelium.toml` as the sole manifest filename
-([DEC-012](../../framework/decisions/DEC-012-manifest-filename-mycelium-toml.md)).
+(DEC-012).
 The master repository keeps `research-program.toml` and is not converted.
 Runtime commands detect an instance by the presence of `mycelium.toml`.
 
@@ -36,9 +36,16 @@ Allowed keys only:
 | `recommendations` | same |
 | `requirements` | same |
 
-Unknown identifier keys → refuse.
+Range rules (brief §5):
+
+- Range grammar: `^([A-Z]+)-([0-9]+)\.\.([A-Z]+)-([0-9]+)$`
+- Both namespaces must match the key's NS (`findings` → FND, `recommendations` → REC, `requirements` → REQ)
+- Start integer <= end integer
+- One range per key this phase
+- Unknown identifier keys: refuse
+
 Stage-scoped allocation (FND / REC / REQ) requires a declared range
-([DEC-013](../../framework/decisions/DEC-013-stage-range-refuse.md)).
+(DEC-013).
 
 ## Optional `[[deviations]]`
 

@@ -1,6 +1,6 @@
 # Idea Lifecycle (Mycelium 2.0)
 
-Exact vocabulary ([DEC-006](../../framework/decisions/DEC-006-idea-lifecycle-with-simmer.md)):
+Exact vocabulary (DEC-006):
 
 ```text
 spark → exploring ⇄ simmering → clarified → handed-off

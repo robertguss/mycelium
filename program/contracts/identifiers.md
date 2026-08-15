@@ -46,7 +46,7 @@ manifest must declare a range under `[identifiers]`
 - Check fails existing files whose IDs sit outside every declared range for
   that key.
 
-See [DEC-013](../../framework/decisions/DEC-013-stage-range-refuse.md).
+See DEC-013.
 Non-stage-scoped types do not require a range.
 
 ## Stability rules
