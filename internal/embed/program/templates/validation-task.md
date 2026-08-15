@@ -4,7 +4,7 @@ Read:
 
 1. `README.md`
 2. `AGENTS.md`
-3. `research-program.toml`
+3. `mycelium.toml`
 4. The Program Blueprint
 5. The Research Charter
 6. The commissioning prompt

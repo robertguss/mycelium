@@ -10,7 +10,7 @@ Unless a project defines a stricter model, apply this order:
 6. Accepted focused research reports as evidence and recommendations.
 7. Adversarial reviews as proposed corrections.
 8. The current accepted revised implementation plan.
-9. The operational manifest (`research-program.toml`).
+9. The operational manifest (`mycelium.toml`).
 10. Community convention.
 11. Model or reviewer preference.
 

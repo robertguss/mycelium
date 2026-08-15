@@ -2,34 +2,28 @@
 
 ## Standard layout
 
+An idea instance is created with `mycelium new idea`. Typical layout:
+
 ```text
-<project>/
+<idea>/
 ├── README.md
 ├── AGENTS.md
-├── Justfile
-├── research-program.toml
-├── .agents/skills/          # portable agent skills
+├── CONTEXT.md
+├── mycelium.toml
+├── log.md
+├── .agents/skills/          # emitted mycelium skills
 ├── program/                 # methodology (this library)
-├── decisions/
-│   ├── README.md
-│   └── DEC-###-short-title.md
-└── docs/
-    ├── 00-program-blueprint.md
-    ├── 01-research-charter.md
-    ├── prompts/
-    ├── reports/
-    ├── reconciliations/
-    ├── evidence/
-    ├── specifications/
-    ├── plans/
-    ├── reviews/
-    ├── handoffs/
-    └── validations/
+├── briefs/
+├── handoff/                 # when handed off
+└── <type homes as needed>/  # decisions/, findings/, …
 ```
 
-Focused research track files (`01-<focus>-…`) are **not** pre-created. After
-Blueprint acceptance, create them just-in-time from
+Focused research track files are **not** pre-created. After Blueprint
+acceptance (when used), create them just-in-time from
 [`../templates/`](../templates/).
+
+Do **not** expect a Justfile, `scripts/`, or `research-program.toml` in an
+idea repo — those are product-repo leftovers and are forbidden to emit.
 
 ## Stable filenames
 
@@ -53,29 +47,29 @@ Rules:
 - Do not invent project decisions beyond approved discovery output.
 - Do not overwrite substantive content.
 - Use stable filenames.
-- Do not run git unless the human explicitly asks (this template’s `just`
-  recipes never run git).
-- Validate the complete tree.
+- Do not run git unless the human explicitly asks (the CLI never git-commits
+  instance work product).
+- Validate the complete tree with `mycelium check`.
 
 ## Manifest
 
-`research-program.toml` is the operational index: resume, legal transitions,
-artifact paths, identifier ranges, accepting commit hashes. It must **not**
-contain substantive conclusions absent from governing Markdown artifacts.
+`mycelium.toml` is the operational index: resume, legal transitions, state,
+tier, identifier ranges. It must **not** contain substantive conclusions
+absent from governing Markdown artifacts.
 
 ## Required root files
 
 ### README.md
 
-Project purpose, program overview, layout, how to resume, current accepted
-implementation authority, what to read first.
+Idea purpose, how to resume, what to read first.
 
 ### AGENTS.md
 
-Artifact authority, allowed file scope, validation, commits, citations,
-identifiers, no silent edits to governing artifacts, fresh-session rules.
+CLI surface, skills, manual floor, teaching errors (see
+`program/skeleton/AGENTS.md`).
 
-### research-program.toml
+### mycelium.toml
 
-Canonical operational manifest (see root file and
+Canonical operational manifest (DEC-012; see
+[`../contracts/manifest.md`](../contracts/manifest.md) and
 [`../reference/state-machine.md`](../reference/state-machine.md)).

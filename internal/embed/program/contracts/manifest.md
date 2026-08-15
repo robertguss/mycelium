@@ -2,7 +2,8 @@
 
 Scaffolded instances use `mycelium.toml` as the sole manifest filename
 (DEC-012).
-The master repository keeps `research-program.toml` and is not converted.
+The master repository is the mycelium product repo and does not carry
+`research-program.toml`; idea instances use `mycelium.toml` (DEC-012).
 Runtime commands detect an instance by the presence of `mycelium.toml`.
 
 `schema_version = 1` is required.
