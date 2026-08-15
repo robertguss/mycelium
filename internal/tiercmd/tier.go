@@ -13,6 +13,7 @@ import (
 
 	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
+	"github.com/robertguss/mycelium/internal/lock"
 	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/op"
@@ -144,6 +145,9 @@ func Run(opts Options, deps Deps) int {
 
 	sameTier := m.Tier == want
 	if sameTier && len(missing) == 0 {
+		if code := refuseBusyNoop(root, deps); code != 0 {
+			return code
+		}
 		fmt.Fprintf(deps.Stdout, "already %s\n", want)
 		return 0
 	}
@@ -376,6 +380,44 @@ func loadHomeNamespaces(root string) (map[string]string, error) {
 		}
 	}
 	return out, nil
+}
+
+func refuseBusyNoop(root string, deps Deps) int {
+	hasJournal, _, err := op.Detect(root)
+	if err != nil {
+		return teach.Write(deps.Stderr,
+			fmt.Sprintf("cannot inspect operation state: %v", err),
+			"operation-protocol",
+			"program/contracts/operation-protocol.md",
+			"fix .mycelium/ and retry",
+		)
+	}
+	if hasJournal {
+		return teach.Write(deps.Stderr,
+			"leftover journal blocks tier",
+			"operation-protocol",
+			"program/contracts/operation-protocol.md",
+			"re-run the original command to complete, or mycelium check --abort-journal to roll back",
+		)
+	}
+	info, err := lock.Inspect(root)
+	if err != nil {
+		return teach.Write(deps.Stderr,
+			fmt.Sprintf("cannot inspect lock: %v", err),
+			"operation-protocol",
+			"program/contracts/operation-protocol.md",
+			"fix .mycelium/lock and retry",
+		)
+	}
+	if info.State == lock.Live {
+		return teach.Write(deps.Stderr,
+			fmt.Sprintf("lock held by another process: pid=%d", info.PID),
+			"operation-protocol",
+			"program/contracts/operation-protocol.md",
+			"wait for the other process to finish; do not force the lock",
+		)
+	}
+	return 0
 }
 
 func rollbackOrClose(sess *op.Session) {

@@ -11,6 +11,8 @@ import (
 	"github.com/robertguss/mycelium/internal/cli"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/journal"
+	"github.com/robertguss/mycelium/internal/lock"
 	"github.com/robertguss/mycelium/internal/manifest"
 )
 
@@ -287,6 +289,66 @@ func TestIdempotentSecondCallAlreadyNoExtraLog(t *testing.T) {
 	}
 	if countTierLogLines(t, inst) != 1 {
 		t.Fatalf("want 1 tier log line, got %d", countTierLogLines(t, inst))
+	}
+}
+
+func TestAlreadyTierRefusesLeftoverJournal(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "Already Journal")
+	deps := fixedDeps(t, cwd)
+
+	code, _, errText := runCLI(t, deps, "tier", "standard", "--dir", inst)
+	if code != 0 {
+		t.Fatalf("tier standard exit %d stderr=%q", code, errText)
+	}
+	if err := journal.Save(inst, &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "new",
+		Title:         "Interrupted",
+		OriginalID:    "DEC-001",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".mycelium/stage-test",
+		Argv:          []string{"new", "decision", "Interrupted"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	code, out, errText := runCLI(t, deps, "tier", "standard", "--dir", inst)
+	if code != 1 {
+		t.Fatalf("exit %d want 1 stdout=%q stderr=%q", code, out, errText)
+	}
+	if strings.Contains(out, "already") {
+		t.Fatalf("noop must not succeed with leftover journal: %q", out)
+	}
+	if !strings.Contains(errText, "leftover journal") {
+		t.Fatalf("stderr=%q", errText)
+	}
+}
+
+func TestAlreadyTierRefusesLiveLock(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "Already Lock")
+	deps := fixedDeps(t, cwd)
+
+	code, _, errText := runCLI(t, deps, "tier", "standard", "--dir", inst)
+	if code != 0 {
+		t.Fatalf("tier standard exit %d stderr=%q", code, errText)
+	}
+	held, err := lock.Acquire(inst, time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = held.Release() })
+
+	code, out, errText := runCLI(t, deps, "tier", "standard", "--dir", inst)
+	if code != 1 {
+		t.Fatalf("exit %d want 1 stdout=%q stderr=%q", code, out, errText)
+	}
+	if strings.Contains(out, "already") {
+		t.Fatalf("noop must not succeed with live lock: %q", out)
+	}
+	if !strings.Contains(errText, "lock held") {
+		t.Fatalf("stderr=%q", errText)
 	}
 }
 
