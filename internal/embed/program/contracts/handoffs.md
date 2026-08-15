@@ -1,5 +1,10 @@
 # Context Handoff and Attachment Manifests
 
+> **v1 session-attachment manifests — not the PHASE-06 packet.**
+> This file is the ADRP v1 attachment-manifest contract.
+> The implementation packet is `program/contracts/handoff-packet.md` (`handoff/PACKET.md`).
+> Do not treat attachment manifests as the handoff packet.
+
 ## Layered context
 
 Full artifacts remain authoritative. Handoff Digests reduce size but never

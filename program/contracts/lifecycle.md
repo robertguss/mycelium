@@ -24,15 +24,16 @@ Birth state is always `spark`.
 | `simmering` | `exploring` | `mycelium wake` (preferred) or `mycelium state exploring` | **Must write the re-entry brief.** Silent wake forbidden. Log op is `wake`. Clear `revisit` to `""`. |
 | `simmering` | `archived` | `mycelium state archived` | No deletion. Clear `revisit`. No brief required. |
 | `clarified` | `archived` | `mycelium state archived` | No deletion. |
-| `clarified` | `handed-off` | *refused* | Teaching error names the PHASE-06 packet. |
-| `handed-off` | anything | *refused* | Same PHASE-06 teaching error. Check still FAILs stored `handed-off`. |
+| `clarified` | `handed-off` | `mycelium handoff` or `mycelium state handed-off` | Legal **IFF** a passing `handoff/PACKET.md` exists. `mycelium handoff` writes the packet then sets state. `state handed-off` flips state only when the packet already exists and passes structure. |
+| `handed-off` | `archived` | `mycelium state archived` | `handed-off` is terminal except `→ archived`. No deletion. |
+| `handed-off` | anything else | *refused* | Terminal except `→ archived`. |
 | `archived` | anything | *refused* | Terminal. Teaching error: archived is terminal. |
 
 ## Allowed PHASE-02 argv targets
 
-`exploring` | `simmering` | `clarified` | `archived`
+`exploring` | `simmering` | `clarified` | `handed-off` | `archived`
 
-- `handed-off` is **never** a legal argv target this phase.
+- `handed-off` is a legal argv target **IFF** `handoff/PACKET.md` exists and passes structure. Missing or structure-fail → refuse; teaching error names `mycelium handoff`.
 - `spark` is not a legal *target* (nothing transitions back to spark).
 
 ## Commands
@@ -56,12 +57,16 @@ Replace PHASE-01 storage rules.
 | `spark` | Legal. |
 | `exploring` | Legal. Do not fail leftover `revisit` (empty or set). Only `state`/`wake` clear it. |
 | `simmering` | Legal iff `revisit` matches `program/contracts/revisit.md`. Empty or malformed → FAIL. |
-| `clarified` | **Legal** (PHASE-01 fail rule lifted for clarified only). |
-| `handed-off` | **FAIL**. Teaching error names PHASE-06 packet. |
+| `clarified` | **Legal** (PHASE-01 fail rule lifted for clarified only). `clarified` without a packet stays **LEGAL**. |
+| `handed-off` | **LEGAL** iff `handoff/PACKET.md` exists and packet structure passes. Stored `handed-off` without packet still **FAIL**. |
 | `archived` | Legal. Terminal. |
 | unknown | FAIL. |
 
 `exploring` / `clarified` / `archived` / `spark` do not fail on `revisit` value.
+
+## Lift timing
+
+Slice 0 is docs only. This file states the PHASE-06 rule. The binary still refuses `state handed-off` and still FAILs stored `handed-off` until Slice 2 binds the command, the IFF, and the storage lift. Do not claim `mycelium handoff` is shipped.
 
 ## Protocol
 
@@ -109,8 +114,8 @@ convention: lifecycle
 contract: program/contracts/lifecycle.md
 fix: allowed next states: exploring, archived
 
-mycelium: state=handed-off requires a PHASE-06 handoff packet
+mycelium: state=handed-off requires a handoff packet
 convention: lifecycle
 contract: program/contracts/lifecycle.md
-fix: stay in clarified, or mycelium state archived; packet command is not shipped
+fix: mycelium handoff [--dir PATH]
 ```
