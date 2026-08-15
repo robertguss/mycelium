@@ -11,6 +11,7 @@ import (
 
 	"github.com/robertguss/mycelium/internal/cli"
 	"github.com/robertguss/mycelium/internal/clock"
+	"github.com/robertguss/mycelium/internal/clitest"
 	"github.com/robertguss/mycelium/internal/execrun"
 	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/lock"
@@ -86,16 +87,43 @@ func TestUnknownCommandTeachingError(t *testing.T) {
 	}
 }
 
-func TestPhase01NotImplementedTeachingError(t *testing.T) {
+func TestPhase01PublishOfflineRefuses(t *testing.T) {
+	root := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	deps := cli.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)},
+		Runner:    rec,
+		Getwd:     func() (string, error) { return root, nil },
+		LookupEnv: func(string) string { return "" },
+	}
 	var stdout, stderr bytes.Buffer
-	code := cli.Run([]string{"mycelium", "publish"}, &stdout, &stderr, cli.Deps{})
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", "Pub Later", "--offline"},
+		&stdout, &stderr, deps,
+	)
+	if code != 0 {
+		t.Fatalf("scaffold exit %d stderr=%q", code, stderr.String())
+	}
+	inst := filepath.Join(root, "pub-later")
+	stdout.Reset()
+	stderr.Reset()
+	deps.LookupEnv = func(k string) string {
+		if k == "MYCELIUM_OFFLINE" {
+			return "1"
+		}
+		return ""
+	}
+	code = cli.Run(
+		[]string{"mycelium", "publish", "--dir", inst},
+		&stdout, &stderr, deps,
+	)
 	if code != 1 {
-		t.Fatalf("exit %d want 1", code)
+		t.Fatalf("publish exit %d want 1", code)
 	}
-	errText := stderr.String()
-	if !strings.Contains(errText, "not implemented in this slice") {
-		t.Fatalf("stderr=%q", errText)
+	if !strings.Contains(stderr.String(), "offline") {
+		t.Fatalf("stderr=%q", stderr.String())
 	}
+	clitest.AssertNoNetwork(t, rec)
 }
 
 func TestCLINewIdeaOfflineThenCheck(t *testing.T) {
