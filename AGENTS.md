@@ -69,3 +69,45 @@ just check           # tree + placeholder/acceptance sanity
 
 See `program/reference/anti-patterns.md`. Especially: chat-history authority,
 placeholder completion, plan-as-backlog, implementation before authority.
+
+## Cursor Cloud specific instructions
+
+This master repo is **Mycelium** (`framework/blueprint.md`, DEC-010): a
+convention-over-configuration thinking framework whose product is a single
+static Go binary (`mycelium`). PHASE-01 has not landed yet — there is no
+`go.mod`, `cmd/`, or `internal/` on `main`. Until the CLI exists, the
+operator surface is `just` + the stdlib Python scripts in `scripts/`.
+
+There are **no long-running services**. Do not start databases, Docker
+Compose, Node, or a web server. `gh` is optional and is only required for
+the authenticated GitHub half of MS-101 (`gh repo create` + `idea` topic);
+hermetic local work must succeed offline.
+
+### Tooling already expected on the image
+
+- `just` (operator recipes in `Justfile`)
+- Go **1.26.x** on `PATH` as `go` (install to `/usr/local/go` so it wins
+  over the older distro `/usr/bin/go`)
+- `python3` (scripts are stdlib-only; no `requirements.txt`)
+- `git`, `gh`
+
+Canonical commands live in the root `Justfile` / `README.md`. After
+`go.mod` exists, use `go test ./...` and `go build -o mycelium ./cmd/mycelium`
+instead of inventing a parallel task runner.
+
+### Gotchas
+
+- Do **not** run `just init` on this master unless a human is naming a
+  program. It rewrites `{{PROJECT_NAME}}` / `{{PROGRAM_ID}}` /
+  `{{CREATED_DATE}}` across root docs and the manifest. Prove `init` in a
+  temp copy.
+- Framework evolution is governed by accepted `framework/decisions/DEC-###`
+  and `framework/blueprint.md`. The `docs/00-program-blueprint.md` spine
+  files are still placeholders and do not unlock PHASE-01.
+- `just check` returning OK means tree shape and acceptance consistency,
+  not that research or the CLI is done.
+- When both `/usr/local/go/bin/go` and `/usr/bin/go` exist, put
+  `/usr/local/go/bin` first on `PATH`. A login shell that sourced
+  `~/.bashrc` already does this in the Cloud Agent image.
+- Startup dependency refresh is a no-op until `go.mod` exists; then it is
+  `go mod download` only. Do not reinstall `just` or Go on every boot.
