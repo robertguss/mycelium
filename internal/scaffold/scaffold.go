@@ -429,6 +429,22 @@ func buildFiles(ideaName, ideaSlug, tier, date, cliVersion string) ([]op.Staged,
 	}
 	files = append(files, prog...)
 
+	if packPresent(prog, "program/packs/council/") {
+		for _, name := range []struct {
+			embed string
+			dest  string
+		}{
+			{"program/packs/council/skills/council/SKILL.md", ".agents/skills/council/SKILL.md"},
+			{"program/packs/council/skills/second-opinion/SKILL.md", ".agents/skills/second-opinion/SKILL.md"},
+		} {
+			b, err := myceliumembed.Program.ReadFile(name.embed)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, op.Staged{RelTo: name.dest, Content: b})
+		}
+	}
+
 	for _, dir := range tierEmits[tier] {
 		title := strings.ToUpper(dir[:1]) + dir[1:]
 		stub := fmt.Sprintf("# %s\n", title)
@@ -501,6 +517,15 @@ func collectProgram() ([]op.Staged, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func packPresent(files []op.Staged, prefix string) bool {
+	for _, f := range files {
+		if strings.HasPrefix(f.RelTo, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // OfflineFromEnv is true when MYCELIUM_OFFLINE is a truthy value.

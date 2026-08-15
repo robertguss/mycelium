@@ -51,6 +51,8 @@ func TestNewIdeaOfflineScaffold(t *testing.T) {
 	mustExist(t, inst, ".agents/skills/wake/SKILL.md")
 	mustExist(t, inst, ".agents/skills/portfolio/SKILL.md")
 	mustExist(t, inst, ".agents/skills/thinking/SKILL.md")
+	mustExist(t, inst, ".agents/skills/council/SKILL.md")
+	mustExist(t, inst, ".agents/skills/second-opinion/SKILL.md")
 	mustExist(t, inst, "program/README.md")
 	mustExist(t, inst, "program/tiers/focused.toml")
 
