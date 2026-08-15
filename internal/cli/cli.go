@@ -36,7 +36,7 @@ Usage:
   mycelium index [--dir PATH]
   mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]
   mycelium wake [--dir PATH]
-  mycelium status [--dir PATH]
+  mycelium status [--dir PATH] [--all] [--root PATH] [--archived] [--offline]
   mycelium -h | --help
 `
 
@@ -426,11 +426,12 @@ Examples:
 func cmdStatus(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseStatusFlags(args)
 	if err == errHelp {
-		fmt.Fprintln(stdout, `Usage: mycelium status [--dir PATH]
+		fmt.Fprintln(stdout, `Usage: mycelium status [--dir PATH] [--all] [--root PATH] [--archived] [--offline]
 
 Examples:
   mycelium status
-  mycelium status --dir ./my-idea`)
+  mycelium status --dir ./my-idea
+  mycelium status --all --offline --root ~/ideas`)
 		return 0
 	}
 	if err != nil {
@@ -438,7 +439,7 @@ Examples:
 			err.Error(),
 			"command-flags",
 			"program/contracts/status.md",
-			"usage: mycelium status [--dir PATH]",
+			"usage: mycelium status [--dir PATH] [--all] [--root PATH] [--archived] [--offline]",
 		)
 	}
 	cwd, err := deps.Getwd()
@@ -451,12 +452,18 @@ Examples:
 		)
 	}
 	return statuscmd.Run(statuscmd.Options{
-		Dir: opts.dir,
-		Cwd: cwd,
+		Dir:      opts.dir,
+		Cwd:      cwd,
+		All:      opts.all,
+		Root:     opts.root,
+		Offline:  opts.offline,
+		Archived: opts.archived,
 	}, statuscmd.Deps{
-		Clock:  deps.Clock,
-		Stdout: stdout,
-		Stderr: stderr,
+		Clock:     deps.Clock,
+		Stdout:    stdout,
+		Stderr:    stderr,
+		Runner:    deps.Runner,
+		LookupEnv: deps.LookupEnv,
 	})
 }
 
@@ -833,13 +840,10 @@ func parseStatusFlags(args []string) (statusFlags, error) {
 			return out, fmt.Errorf("unexpected argument %q", a)
 		}
 	}
-	if out.all {
-		return out, fmt.Errorf("status --all is Slice 5")
-	}
-	if out.hasRoot {
+	if out.hasRoot && !out.all {
 		return out, fmt.Errorf("--root requires --all")
 	}
-	if out.archived {
+	if out.archived && !out.all {
 		return out, fmt.Errorf("status --archived requires --all")
 	}
 	return out, nil

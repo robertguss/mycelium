@@ -100,24 +100,75 @@ func TestStatusNoInstanceTeachingError(t *testing.T) {
 	clitest.AssertNoNetwork(t, rec)
 }
 
-func TestStatusAllTeachingError(t *testing.T) {
+func TestStatusAllOfflineTwoInstances(t *testing.T) {
 	work := t.TempDir()
+	ideas := filepath.Join(work, "ideas")
+	if err := os.MkdirAll(ideas, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	rec := &execrun.Recording{Inner: execrun.Real{}}
 	clk := clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)}
 	env := map[string]string{"MYCELIUM_OFFLINE": "1"}
 
-	code, stdout, stderr := runCLI(t, clk, rec, env, work, "status", "--all")
-	if code != 1 {
-		t.Fatalf("exit %d want 1 stderr=%q", code, stderr)
+	a := scaffoldIdea(t, ideas, "Garden Lighting", clk, rec, env)
+	b := scaffoldIdea(t, ideas, "Wake Fixture", clk, rec, env)
+	mustState(t, clk, rec, env, ideas, a, "exploring")
+	mustState(t, clk, rec, env, ideas, a, "simmering", "--revisit", "2026-08-08")
+	mustState(t, clk, rec, env, ideas, b, "exploring")
+
+	callsBefore := len(rec.Calls)
+	due := clock.Fixed{T: time.Date(2026, 8, 9, 0, 0, 0, 0, time.UTC)}
+	code, stdout, stderr := runCLI(t, due, rec, env, work, "status", "--all", "--offline", "--root", ideas)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr)
 	}
-	if stdout != "" {
-		t.Fatalf("stdout should be empty, got %q", stdout)
+	for _, c := range rec.Calls[callsBefore:] {
+		if c.Kind == "run" && (c.Name == "gh" || filepath.Base(c.Name) == "gh") {
+			t.Fatalf("gh run: %+v", c)
+		}
 	}
-	if !strings.Contains(stderr, "status --all is Slice 5") {
-		t.Fatalf("stderr=%q", stderr)
+	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("stdout=%q", stdout)
 	}
-	if !strings.Contains(stderr, "program/contracts/status.md") {
-		t.Fatalf("stderr=%q", stderr)
+	if !strings.HasPrefix(lines[0], "partial: local-only (") {
+		t.Fatalf("first line=%q", lines[0])
+	}
+	if lines[0] != "partial: local-only (offline)" {
+		t.Fatalf("want offline reason, got %q", lines[0])
+	}
+	if lines[len(lines)-1] != "2 ideas (1 overdue, partial)" {
+		t.Fatalf("summary=%q stdout=%q", lines[len(lines)-1], stdout)
+	}
+	if !strings.Contains(stdout, "garden-lighting\tsimmering") {
+		t.Fatalf("missing garden-lighting: %q", stdout)
+	}
+	if !strings.Contains(stdout, "wake-fixture\texploring") {
+		t.Fatalf("missing wake-fixture: %q", stdout)
+	}
+	clitest.AssertNoNetwork(t, rec)
+}
+
+func TestStatusAllMissingRootPartial(t *testing.T) {
+	work := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	clk := clock.Fixed{T: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)}
+	env := map[string]string{"MYCELIUM_OFFLINE": "1"}
+	missing := filepath.Join(work, "missing-ideas")
+
+	callsBefore := len(rec.Calls)
+	code, stdout, stderr := runCLI(t, clk, rec, env, work, "status", "--all", "--offline", "--root", missing)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr)
+	}
+	for _, c := range rec.Calls[callsBefore:] {
+		if c.Kind == "run" && (c.Name == "gh" || filepath.Base(c.Name) == "gh") {
+			t.Fatalf("gh run: %+v", c)
+		}
+	}
+	want := "partial: local-only (offline)\n0 ideas (0 overdue, partial)\n"
+	if stdout != want {
+		t.Fatalf("stdout=%q want %q", stdout, want)
 	}
 }
 
