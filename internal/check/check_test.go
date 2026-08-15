@@ -853,3 +853,288 @@ none
 		t.Fatalf("want unresolved front-matter link finding, got %v", r.Findings)
 	}
 }
+
+const (
+	testPromptB = "Should this idea use SQLite as the store? Answer independently. Do not see other reports."
+	testHashB   = "ec87bfc2afd545807ca87b5c29cae8e77262cb3c746fc63e4539d8daeb2a77de"
+	testPromptC = "Review the SQLite store decision. Work independently. Do not see other reports. Retain dissent."
+	testHashC   = "8997334f7f2f0bf821bce8ccc4a8d6cf027317c6c66d821200a032a6a11ce098"
+)
+
+func TestLadderOptInFalse(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder OptIn Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "second-opinion", false, "cheap", "manual", testPromptB))
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "opt_in must be true", "council-opt-in", "program/packs/council/contracts/commissioning.md") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderCouncilCheap(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder Cheap Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "council", true, "cheap", "manual", testPromptC))
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, `cost_class "cheap"`, "council-cost-class") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderLoneCMP(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder Lone Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "second-opinion", true, "cheap", "manual", testPromptB))
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+}
+
+func TestLadderSecondOpinionTwoRPT(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder Two Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "second-opinion", true, "cheap", "manual", testPromptB))
+	writeLadderRPT(t, root, "RPT-001-a.md", ladderRPTBody("RPT-001", "CMP-001", "second-opinion", "manual", testHashB, "none"))
+	writeLadderRPT(t, root, "RPT-002-b.md", ladderRPTBody("RPT-002", "CMP-001", "second-opinion", "manual", testHashB, "none"))
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "second-opinion-cardinality") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderCouncilHappyAndSeed(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder Happy Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "council", true, "standard", "cursor", testPromptC))
+	writeLadderRPT(t, root, "RPT-001-a.md", ladderRPTBody("RPT-001", "CMP-001", "council", "cursor", testHashC, "SEED-DISSENT"))
+	writeLadderRPT(t, root, "RPT-002-b.md", ladderRPTBody("RPT-002", "CMP-001", "council", "cursor", testHashC, "none"))
+	writeLadderRCL(t, root, "RCL-001-x.md", ladderRCLBody("RCL-001", "CMP-001", "SEED-DISSENT"))
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+
+	writeLadderRCL(t, root, "RCL-001-x.md", ladderRCLBody("RCL-001", "CMP-001", "none"))
+	r = check.Run(root)
+	if r.OK {
+		t.Fatal("want seed fail")
+	}
+	if !findingHas(r.Findings, "SEED-DISSENT", "seeded-dissent", "program/packs/council/contracts/reconciliation.md") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderHashMismatch(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder Hash Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "second-opinion", true, "cheap", "manual", testPromptB))
+	writeLadderRPT(t, root, "RPT-001-a.md", ladderRPTBody("RPT-001", "CMP-001", "second-opinion", "manual",
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "none"))
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "prompt_sha256 mismatch", testHashB, "prompt-identity") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderCouncilOneRPT(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder One Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "council", true, "standard", "cursor", testPromptC))
+	writeLadderRPT(t, root, "RPT-001-a.md", ladderRPTBody("RPT-001", "CMP-001", "council", "cursor", testHashC, "none"))
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "council-cardinality") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderRungAdapterMismatch(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder Mismatch Unit")
+	writeLadderCMP(t, root, "CMP-001-x.md", ladderCMPBody("CMP-001", "second-opinion", true, "cheap", "manual", testPromptB))
+	writeLadderRPT(t, root, "RPT-001-a.md", ladderRPTBody("RPT-001", "CMP-001", "council", "cursor", testHashB, "none"))
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "rung") || !findingHas(r.Findings, "adapter") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderOrphanRPT(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder Orphan Unit")
+	writeLadderRPT(t, root, "RPT-001-a.md", ladderRPTBody("RPT-001", "CMP-999", "second-opinion", "manual", testHashB, "none"))
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "does not resolve") && !findingHas(r.Findings, "reference CMP-999 has no file") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func TestLadderOptInStringTrue(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Ladder OptStr Unit")
+	body := `+++
+id = "CMP-001"
+title = "x"
+date = "2026-08-15"
+rung = "second-opinion"
+opt_in = "true"
+cost_class = "cheap"
+adapter = "manual"
++++
+
+# CMP-001 — x
+
+## Prompt
+
+` + testPromptB + `
+
+## Attachments
+
+none
+
+## Cost
+
+cheap
+`
+	writeLadderCMP(t, root, "CMP-001-x.md", body)
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail on string opt_in")
+	}
+	if !findingHas(r.Findings, "opt_in must be true", "council-opt-in") {
+		t.Fatalf("findings=%v", r.Findings)
+	}
+}
+
+func writeLadderCMP(t *testing.T, root, name, body string) {
+	t.Helper()
+	dir := filepath.Join(root, "reviews", "commissioning")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeLadderRPT(t *testing.T, root, name, body string) {
+	t.Helper()
+	dir := filepath.Join(root, "reviews", "reports")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeLadderRCL(t *testing.T, root, name, body string) {
+	t.Helper()
+	dir := filepath.Join(root, "reviews", "reconciliations")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func ladderCMPBody(id, rung string, optIn bool, cost, adapter, prompt string) string {
+	opt := "true"
+	if !optIn {
+		opt = "false"
+	}
+	return fmt.Sprintf(`+++
+id = %q
+title = "SQLite"
+date = "2026-08-15"
+rung = %q
+opt_in = %s
+cost_class = %q
+adapter = %q
++++
+
+# %s — SQLite
+
+## Prompt
+
+%s
+
+## Attachments
+
+none
+
+## Cost
+
+%s
+`, id, rung, opt, cost, adapter, id, prompt, cost)
+}
+
+func ladderRPTBody(id, cmp, rung, adapter, hash, dissent string) string {
+	return fmt.Sprintf(`+++
+id = %q
+title = "Report"
+date = "2026-08-15"
+model = "model-a"
+commissioning = %q
+rung = %q
+adapter = %q
+prompt_sha256 = %q
++++
+
+# %s — Report
+
+## Position
+
+pos
+
+## Findings
+
+find
+
+## Dissent
+
+%s
+`, id, cmp, rung, adapter, hash, id, dissent)
+}
+
+func ladderRCLBody(id, cmp, retained string) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf(`+++
+id = %q
+title = "Rec"
+date = "2026-08-15"
+commissioning = %q
+rung = "council"
++++
+
+# %s — Rec
+
+`, id, cmp, id))
+	for _, s := range []string{
+		"Convergence",
+		"Material disagreement",
+		"Evidence unique to one report",
+		"Contradictory evidence",
+		"Different assumptions",
+		"Different scope interpretations",
+		"Recommendations independently supported",
+		"Questions requiring another spike",
+		"Final reconciled recommendation",
+	} {
+		b.WriteString("## " + s + "\n\nnone\n\n")
+	}
+	b.WriteString("## Retained dissent\n\n" + retained + "\n")
+	return b.String()
+}
