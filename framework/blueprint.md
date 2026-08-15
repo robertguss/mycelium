@@ -1,7 +1,11 @@
 # Mycelium — Framework Blueprint
 
 - **Status:** Proposed — awaiting acceptance by Robert Guss
-- **Date:** 2026-08-14
+- **Date:** 2026-08-14 (revised 2026-08-14)
+- **Revision:** 1 — applies all thirteen accepted findings of the
+  [blueprint adversarial review](reviews/01-blueprint-adversarial-review.md)
+  per its
+  [Dispositions](reviews/01-blueprint-adversarial-review.md#dispositions)
 - **Authors:** Robert Guss with his agent (discovery interview, one question at
   a time per `program/reference/discovery-protocol.md`)
 - **Methodology version targeted:** 2.0 (evolving v1.0 in place)
@@ -82,10 +86,11 @@ program-scale only — there is no home for a thirty-minute spark.
 4. Councils are opt-in, never required, cost-visible before running.
 5. Humans own git. Agents write files; humans (or explicitly delegated
    agents) commit. The CLI never commits work product.
-6. Methodology is version-pinned per instance at scaffold time. Runtime
-   commands treat instance files as truth, never the binary's embedded
-   copies, so old instances keep working under new binaries. Migration
-   machinery is deferred (DEC-011).
+6. Methodology is version-pinned per instance at scaffold time, recorded in
+   the manifest as `methodology_version`, distinct from
+   `generated_by_cli_version`. Runtime commands treat instance files as
+   truth, never the binary's embedded copies, so old instances keep working
+   under new binaries. Migration machinery is deferred (DEC-011).
 7. v1's authority rules stand: git-tracked artifacts are authoritative; chat
    and model memory are not.
 
@@ -184,15 +189,36 @@ and the manual floor.
 
 ### Instance (per idea)
 
-`mycelium new idea "name"` scaffolds it: README, manifest (with
-`state = "spark"` and the generating CLI version), `log.md`, empty
-`CONTEXT.md`, `AGENTS.md`, `program/` contracts and templates, then git
-init, `gh repo create`, and the `idea` topic. Structure is emitted per tier:
-a spark carries only what a spark needs, and deeper docs/ trees arrive when
-a tier that requires them is set. (v1's full tree of placeholders existed to
-compensate for indiscriminate template copying; the CLI ends that.)
-Conformance requirements are **tier-aware**: a spark passes with almost
-nothing; ledger discipline binds only at the tier that demands it.
+`mycelium new idea "name"` scaffolds it: README, manifest, `log.md`, empty
+`CONTEXT.md`, `AGENTS.md`, `.agents/skills/` (the emitted skills, teaching
+the commands and the manual floor), and `program/` contracts, templates,
+and schemas, then git init, `gh repo create`, and the `idea` topic.
+
+The manifest separates two orthogonal fields: lifecycle **state** (`spark`
+at birth, transitions per the DEC-006 machine) and rigor **tier** (per
+DEC-002). Any state may hold any tier. It also records two distinct version
+fields, `methodology_version` (DEC-004's pin) and
+`generated_by_cli_version` (DEC-011's seam), with no one-to-one release
+invariant declared between them.
+
+Structure is emitted per tier, never per state: a low tier carries little,
+and deeper docs/ trees arrive when a tier that requires them is set. (v1's
+full tree of placeholders existed to compensate for indiscriminate template
+copying; the CLI ends that.) Tier transitions are legal in both directions
+and independent of state transitions. `mycelium tier <tier>` (PHASE-01) is
+the idempotent promotion operation: it updates the manifest and emits only
+the structure the new tier newly requires, never overwriting or rewriting
+existing work; lowering a tier deletes nothing (no-deletion rule) and only
+relaxes which artifacts bind. Conformance requirements are **tier-aware**:
+a minimal tier passes with almost nothing; ledger discipline binds only at
+the tier that demands it.
+
+Of the emitted files, the portable authority is `program/` (contracts,
+templates, sidecar schemas, tier config) plus the manifest and `AGENTS.md`.
+`.agents/skills/` is the canonical emitted runtime-adapter path — skill
+source lives under the master's `program/` tree — and it, like any further
+per-runtime adapter files, is a generated convenience, always subordinate
+to the portable contracts.
 
 ## Conventions and conformance
 
@@ -210,13 +236,16 @@ declared-deviation rule), approved by Robert as a block.
    which artifacts bind. (Rails environments, translated.)
 3. Generators (`mycelium new <type> "Title"`) create the full bundle: file
    from template, next ID allocated, manifest entry when stage-tracked, log
-   line appended. Half-created artifacts stop being possible. There is no
-   destroy; state-transition commands (`mycelium supersede`) honor the
-   no-deletion rule.
-4. No migrations (DEC-011). Instead: every manifest records the generating
-   CLI version, runtime commands validate against the instance's own emitted
-   schemas (instance files are truth), and the master keeps a `CHANGELOG.md`
-   as each release's human-readable face.
+   line appended — all under the operation protocol (see Templates and
+   generation), which makes an interrupted bundle detectable and
+   recoverable instead of claiming half-created artifacts are impossible.
+   There is no destroy; state-transition commands (`mycelium supersede`)
+   honor the no-deletion rule.
+4. No migrations (DEC-011). Instead: every manifest records
+   `methodology_version` and `generated_by_cli_version` as separate fields,
+   runtime commands validate against the instance's own emitted schemas
+   (instance files are truth), and the master keeps a `CHANGELOG.md` as
+   each release's human-readable face.
 5. Packs are presence-registered: a directory under `program/packs/<name>/`
    containing its own templates, contracts, and checks. Drop in to enable,
    remove to disable, no registry file. Conformance fails namespace
@@ -233,11 +262,11 @@ declared-deviation rule), approved by Robert as a block.
    deviation is a conformance failure even when the deviation itself would
    be acceptable.
 9. The conformance suite validates **structure only**: ID uniqueness and
-   sequence, ID-to-path integrity, link resolution, required metadata and
-   sections per schema, legal state transitions, tier-appropriate artifact
-   presence, parseable log prefixes, crux presence on disagreement records,
-   and revisit triggers on simmering ideas. Checks never grade content;
-   thinking quality is judged by
+   sequence, ID-to-path integrity, link resolution, required front matter
+   and sections per schema, legal state and tier transitions,
+   tier-appropriate artifact presence, parseable log prefixes, crux
+   presence on disagreement records, and revisit triggers on simmering
+   ideas. Checks never grade content; thinking quality is judged by
    adversarial review, councils, and the human (Goodhart guard).
 10. Failures teach: every error names the violated convention, links its
     contract, and suggests the fixing command (did-you-mean style).
@@ -249,7 +278,8 @@ declared-deviation rule), approved by Robert as a block.
 Every artifact type is defined by exactly two files, side by side in
 `program/templates/` (or a pack's `templates/`): the markdown template and a
 sidecar schema (`<type>.schema.toml`) declaring the ID namespace, home
-directory, filename pattern, required metadata keys, and required sections.
+directory, filename pattern, required front-matter fields, and required
+sections.
 
 The schema is the shared truth. The generator reads it to know what to
 create and where; the checker reads the same file to know what to validate.
@@ -268,7 +298,8 @@ Mechanics:
   pure function, a directory scan is unambiguous and there is no central
   index file to rot. The generator refuses to overwrite, fills tokens,
   writes the file, appends the log entry, updates the manifest for
-  stage-tracked types, prints the path plus next steps, and never runs git.
+  stage-tracked types, prints the path plus next steps, and never runs git
+  — all under the operation protocol below.
 - Runtime commands (`new`, `check`, `status`) read the instance's own
   emitted templates and schemas, never the binary's embedded copies. A new
   binary therefore generates and validates old instances by their own
@@ -277,10 +308,36 @@ Mechanics:
   both records, and logs the transition.
 - Stage-scoped namespaces (`REC`/`REQ`/`FND`) respect the ranges the
   blueprint and manifest allocate; enforcement strictness is OQ-007.
-- Artifact metadata keeps the human-readable bullet style of the v1
-  templates. Machine state stays in the manifest per the manifest-authority
-  rule; schemas exist so the checker can parse the bullets, not to move
-  state into artifact files.
+- Artifact metadata in emitted templates is **front matter**, defined and
+  validated by each type's sidecar schema (DEC-005 item 3 as written). One
+  parser contract — the **metadata reader**, implemented once in the CLI —
+  is consumed by both the generator and `mycelium check`, and it bounds
+  front-matter and section detection so body text cannot masquerade as
+  metadata. Machine lifecycle state stays in the manifest per the
+  manifest-authority rule. This grammar governs what Mycelium emits and
+  validates; the master's own `framework/` artifacts are not retrofitted.
+
+Operation protocol (all multi-file commands: `new`, `supersede`, `tier`):
+
+1. **Preflight** — validate that the manifest and log parse, the schema
+   resolves, and the target path is free, before anything is written.
+2. **Lock** — take an exclusive repository lock for the duration, so
+   concurrent generators cannot allocate the same ID.
+3. **Stage** — write outputs as temporary files and record the operation's
+   intent in a journal.
+4. **Commit** — atomic renames where the filesystem supports them, in a
+   fixed order: artifact file, then log, then manifest.
+5. **Rollback and retry** — failure before the first rename removes the
+   staged files and changes nothing; after a partial commit the journal
+   survives, and re-running the command resumes the journaled operation
+   under the original ID rather than allocating a new one.
+6. **Detection and recovery** — `mycelium check` detects a leftover journal
+   or stale lock as an interrupted operation and names the documented
+   recovery step (complete or roll back), did-you-mean style.
+
+The supported filesystem floor is a local filesystem with atomic rename;
+network filesystems are outside the floor, where the lock and journal still
+bound the damage.
 
 ## Perspective ladder
 
@@ -307,52 +364,103 @@ rungs 2–3; `AGENTS.md` carries the capability note.
 
 No hub repo. Each instance manifest carries `state` and `revisit`; the
 scaffolder applies the `idea` topic on GitHub automatically (DEC-003's topic
-hygiene, now enforced by tooling instead of memory). `mycelium status --all`
-scans the ideas root (`~/ideas/<slug>` by convention) and answers "what's
-simmering, what's due to wake"; a thin skill wraps the command for agents.
+hygiene, now enforced by tooling instead of memory).
+
+`mycelium status --all` answers "what's simmering, what's due to wake" by
+querying GitHub live, per DEC-003: enumerate repositories carrying the
+`idea` topic (via `gh`), read each manifest (remotely for repos not cloned
+locally), and merge a scan of the local ideas root (`~/ideas/<slug>` by
+convention). Every case is handled explicitly: remote-only repos appear via
+the topic query; local-only repos (created but not yet published, or
+missing the topic) appear from the local scan, flagged as unpublished;
+archived ideas are filtered from the default view and available behind a
+flag; when GitHub is unauthenticated or temporarily unavailable (outage,
+rate limit), the command degrades to the documented local fallback — the
+local scan alone — and marks the output partial, never silently incomplete.
+The first usable version ships in PHASE-02 alongside the thin portfolio
+skill that wraps the command for agents; PHASE-05 hardens it with tolerance
+for older manifest shapes (DEC-011's risk guard).
 
 ## Phases and milestones
 
 Sequential; each phase ends verifiable. Stops at milestones, per house rule.
+Milestones are stated at blueprint-wording granularity; each phase's full
+acceptance matrix lands in that phase's contract when the phase is
+commissioned, per the
+[review dispositions](reviews/01-blueprint-adversarial-review.md#dispositions),
+so "verifiable" keeps a stable meaning without the blueprint becoming a
+test plan.
 
 - **PHASE-01 Foundation.** Go CLI skeleton; `program/` content authored and
-  `go:embed`'d; naming and ID-to-path contracts; template sidecar schemas;
-  tiers as machine-readable config; `mycelium new idea` scaffolding (emit,
-  git init, `gh repo create`, `idea` topic); the data-driven
-  `mycelium new <type>` generator; manifest gains idea-lifecycle fields and
-  the CLI version stamp; `mycelium check` (schema-driven, tier-aware,
-  teaching errors); fixture-instance CI (scaffold, generate, check).
-  *MS-101: a machine with the binary goes from nothing to a conformant spark
-  instance in under five minutes.*
+  `go:embed`'d; naming and ID-to-path contracts; template sidecar schemas
+  and the front-matter metadata reader; tiers as machine-readable config;
+  `mycelium new idea` scaffolding (emit, git init, `gh repo create`, `idea`
+  topic); the data-driven `mycelium new <type>` generator and the operation
+  protocol; the idempotent `mycelium tier` operation; manifest gains
+  separate lifecycle-state and rigor-tier fields plus `methodology_version`
+  and `generated_by_cli_version` stamps; `mycelium check` (schema-driven,
+  tier-aware, teaching errors, interrupted-operation detection);
+  fixture-instance CI (scaffold, generate, check).
+  *MS-101 — two parts. Hermetic local: with no network, the binary
+  scaffolds a conformant spark instance, and fixture CI generates and
+  checks one of every artifact type. Authenticated GitHub integration: a
+  separately credentialed test publishes the repo with the `idea` topic and
+  cleans up on failure. Five minutes from nothing to first captured thought
+  stays a user SLO, not the phase gate.*
 - **PHASE-02 Lifecycle.** Spark / wake / portfolio skills; log + index
-  conventions; re-entry brief; simmer with revisit triggers.
-  *MS-201: an idea simmered for 7+ days wakes with a brief citing what
-  changed.*
+  conventions; re-entry brief; simmer with revisit triggers; first usable
+  `mycelium status --all` (live GitHub enumeration with documented local
+  fallback, per Cross-idea operations).
+  *MS-201: against a deterministic fixture — injectable clock, known log
+  entries, evidence triggers, and assumption changes — a simulated 7+ day
+  simmer wakes with a brief citing the expected changes and sources; one
+  dogfood wake after seven real days follows as human evidence.*
 - **PHASE-03 Sparring.** Thinking-mode skill: mandatory positions, agreement
   states, disagreement records with cruxes, glossary challenge, assumption
   audit. Grilling and domain-modeling conventions absorbed and credited.
-  *MS-301: a session transcript yields zero bare questions and at least one
-  recorded crux.*
+  *MS-301: two fixture sessions pass — one deliberately disputed, whose
+  record retains both positions, both sets of reasons, and cruxes; one
+  honestly aligned, which passes with no disagreement record required.
+  Substantive-question and bare-question judgment belongs to the human or
+  an adversarial reviewer, never an automated content score (DEC-005's
+  containers boundary).*
 - **PHASE-04 Perspective ladder.** Commissioning + report + reconciliation
   contracts for model-diverse replication; second-opinion move; Cursor
   council adapter; panel presets in user config. Council ships as the first
-  pack, proving presence-is-registration.
-  *MS-401: one full council runs end to end; all artifacts pass conformance;
-  dissent retained.*
+  pack, proving presence-is-registration. Council-contract dogfood lands
+  here (moved from OQ-006), as does commissioning provenance: commissioning
+  prompts stored durably in-repo, model provenance recorded, and the ladder
+  rung named for every commissioned review.
+  *MS-401: the end-to-end council run is one row of a perspective-ladder
+  acceptance matrix covering the DEC-008 contract — second-opinion,
+  Cursor-council, and manual-floor rows; explicit opt-in and stated cost
+  class; prompt identity and model provenance evidenced; independent
+  per-model reports; a seeded dissent surviving reconciliation;
+  council-pack enable/disable without touching core checks.*
 - **PHASE-05 Distribution and lifecycle commands.** `mycelium supersede`;
   tagged releases with prebuilt binaries and install docs; `CHANGELOG.md`
   discipline; portfolio scanner tolerant of older manifest shapes (DEC-011's
   risk guard).
-  *MS-501: a clean VM goes from one-line install to a scaffolded instance in
-  under a minute.*
+  *MS-501 — two clauses. Functional acceptance: `mycelium supersede` leaves
+  bidirectional cross-links and a log entry; `check` and `status` pass
+  golden old-instance fixtures; releases ship checksummed binaries with a
+  `CHANGELOG.md` entry. Install SLO: a clean VM (named image) goes from
+  one-line install to a scaffolded instance in under a minute.*
 - **PHASE-06 Handoff.** Packet contract + generator; pstack/poteto bridge
   documented; implementation-systems section in AGENTS.md.
-  *MS-601: a fresh agent in a clean session implements from a packet alone.*
+  *MS-601: a fresh, isolated agent — no chat history, no source access
+  beyond the packet — implements a canonical packet fixture's bounded
+  target with the documented implementation system inside a stated time
+  budget, and the result passes the fixture's executable acceptance tests.
+  A separate real-project handoff serves as dogfood evidence, not the
+  gate.*
 
 ## Identifier allocations (framework evolution)
 
 - Framework decisions: `DEC-001`–`DEC-099` (in `framework/decisions/`).
-- Blueprint adversarial-review findings, when commissioned: `FND-001`–`FND-099`.
+- Blueprint adversarial-review findings: `FND-001`–`FND-099` (`FND-001`
+  through `FND-013` consumed by the
+  [2026-08-14 review](reviews/01-blueprint-adversarial-review.md)).
 - Open questions herein: `OQ-001`–`OQ-019`.
 
 ## Open questions
@@ -369,8 +477,12 @@ Sequential; each phase ends verifiable. Stops at milestones, per house rule.
 - **OQ-005** Resolved 2026-08-14: the master repository is named
   `mycelium`; scaffolded instance repositories receive the `idea` topic
   automatically (see Cross-idea operations).
-- **OQ-006** Whether the blueprint itself gets a council review before
-  PHASE-01 begins (recommended: yes, as the council contract's dogfood).
+- **OQ-006** Resolved 2026-08-14: the blueprint received an independent,
+  manually commissioned
+  [adversarial review](reviews/01-blueprint-adversarial-review.md) by a
+  different model — under DEC-008's definitions neither a council nor a
+  second opinion, since the commissioning prompt differed from the drafting
+  prompt. Council-contract dogfood moves to PHASE-04.
 - **OQ-007** Generator strictness for stage-scoped ID ranges: warn or refuse
   when allocating outside a declared range.
 
@@ -384,5 +496,5 @@ spark → handed-off entirely inside Mycelium.
 
 Fresh-session note: this blueprint is the synthesized output of the
 2026-08-14 discovery interview. Per the fresh-session rule, its adversarial
-review (OQ-006) and each build phase should run in fresh sessions with
-self-contained packets.
+review ran in a fresh session (OQ-006, resolved), and each build phase
+should run in fresh sessions with self-contained packets.
