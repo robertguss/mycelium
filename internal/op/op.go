@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/robertguss/mycelium/internal/journal"
@@ -17,6 +18,7 @@ var (
 	ErrNothingToAbort  = errors.New("op: nothing to abort")
 	ErrPartialCommit   = errors.New("op: cannot rollback after partial commit")
 	ErrLocked          = errors.New("op: lock held")
+	ErrPathEscape      = errors.New("op: path escape")
 )
 
 // Intent describes a mutating operation before staging.
@@ -55,10 +57,19 @@ func Begin(root string, intent Intent, now time.Time) (*Session, error) {
 			return nil, fmt.Errorf("%w: use mycelium check --abort-journal", ErrJournalMismatch)
 		}
 		intent.OriginalID = existing.OriginalID
+		if err := validateContained(root, existing.StagedDir); err != nil {
+			return nil, err
+		}
+		for _, r := range existing.Renames {
+			if err := validateContained(root, r.From); err != nil {
+				return nil, err
+			}
+			if err := validateContained(root, r.To); err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	// Acquire opens the existing lock path (O_CREATE|O_RDWR) and flocks that
-	// inode. Do not RemoveStale first: unlinking then recreating splits inodes.
 	held, err := lock.Acquire(root, now)
 	if err != nil {
 		if errors.Is(err, lock.ErrBusy) {
@@ -70,6 +81,15 @@ func Begin(root string, intent Intent, now time.Time) (*Session, error) {
 	opID := intent.OpID
 	if opID == "" {
 		opID = fmt.Sprintf("%s-%d", intent.Op, now.UTC().UnixNano())
+	}
+	if err := validateOpID(opID); err != nil {
+		_ = held.Release()
+		return nil, err
+	}
+	stagedDir := filepath.ToSlash(filepath.Join(".mycelium", "stage", opID))
+	if err := validateStagedDir(root, stagedDir); err != nil {
+		_ = held.Release()
+		return nil, err
 	}
 
 	s := &Session{root: root, held: held}
@@ -84,7 +104,7 @@ func Begin(root string, intent Intent, now time.Time) (*Session, error) {
 		Title:         intent.Title,
 		OriginalID:    intent.OriginalID,
 		StartedAt:     now.UTC().Format(time.RFC3339),
-		StagedDir:     filepath.ToSlash(filepath.Join(".mycelium", "stage", opID)),
+		StagedDir:     stagedDir,
 		LogLine:       intent.LogLine,
 		Argv:          append([]string(nil), intent.Argv...),
 	}
@@ -119,8 +139,10 @@ func (s *Session) Stage(files []Staged) error {
 		return errors.New("op: no journal")
 	}
 	if len(s.journal.Renames) > 0 {
-		// Resume: staged files and renames already recorded.
 		return nil
+	}
+	if err := validateContained(s.root, s.journal.StagedDir); err != nil {
+		return err
 	}
 	stageAbs := s.StageDir()
 	if err := os.MkdirAll(stageAbs, 0o755); err != nil {
@@ -128,15 +150,18 @@ func (s *Session) Stage(files []Staged) error {
 	}
 	renames := make([]journal.Rename, 0, len(files))
 	for i, f := range files {
-		if f.RelTo == "" {
-			return fmt.Errorf("op: empty RelTo at %d", i)
+		if err := validateContained(s.root, f.RelTo); err != nil {
+			return err
 		}
 		base := filepath.Base(f.RelTo)
-		if base == "." || base == "/" || base == "" {
+		if base == "." || base == string(filepath.Separator) || base == "" {
 			base = fmt.Sprintf("file-%d", i)
 		}
 		stagedName := fmt.Sprintf("%03d-%s", i, base)
 		stagedRel := filepath.ToSlash(filepath.Join(s.journal.StagedDir, stagedName))
+		if err := validateContained(s.root, stagedRel); err != nil {
+			return err
+		}
 		abs := filepath.Join(s.root, filepath.FromSlash(stagedRel))
 		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
 			return err
@@ -146,7 +171,7 @@ func (s *Session) Stage(files []Staged) error {
 		}
 		renames = append(renames, journal.Rename{
 			From: stagedRel,
-			To:   filepath.ToSlash(f.RelTo),
+			To:   filepath.ToSlash(filepath.Clean(f.RelTo)),
 			Done: false,
 		})
 	}
@@ -186,14 +211,23 @@ func (s *Session) commitN(max int) (int, error) {
 			}
 			return applied, nil
 		}
-		from := filepath.Join(s.root, filepath.FromSlash(s.journal.Renames[i].From))
-		to := filepath.Join(s.root, filepath.FromSlash(s.journal.Renames[i].To))
+		fromRel := s.journal.Renames[i].From
+		toRel := s.journal.Renames[i].To
+		if err := validateContained(s.root, fromRel); err != nil {
+			return applied, err
+		}
+		if err := validateContained(s.root, toRel); err != nil {
+			return applied, err
+		}
+		from := filepath.Join(s.root, filepath.FromSlash(fromRel))
+		to := filepath.Join(s.root, filepath.FromSlash(toRel))
 		_, fromErr := os.Stat(from)
 		_, toErr := os.Stat(to)
 		fromOK := fromErr == nil
 		toOK := toErr == nil
+
+		// Before Save: to exists and from does not → mark Done.
 		if toOK && !fromOK {
-			// Crash between Rename and Save: dest landed, source gone.
 			s.journal.Renames[i].Done = true
 			applied++
 			if err := journal.Save(s.root, s.journal); err != nil {
@@ -201,9 +235,15 @@ func (s *Session) commitN(max int) (int, error) {
 			}
 			continue
 		}
+		// Both exist → refuse.
 		if toOK && fromOK {
 			_ = journal.Save(s.root, s.journal)
 			return applied, fmt.Errorf("op: rename conflict: both %s and %s exist", from, to)
+		}
+		// From exists → Rename, then mark Done and Save.
+		if !fromOK {
+			_ = journal.Save(s.root, s.journal)
+			return applied, fmt.Errorf("op: missing staged source %s", from)
 		}
 		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 			_ = journal.Save(s.root, s.journal)
@@ -235,8 +275,7 @@ func (s *Session) commitN(max int) (int, error) {
 func (s *Session) finish() error {
 	staged := s.StageDir()
 	_ = os.RemoveAll(staged)
-	// prune empty stage parent if possible
-	_ = os.Remove(filepath.Join(s.root, ".mycelium", "stage"))
+	pruneOrphanStages(s.root, "")
 	if err := journal.Remove(s.root); err != nil {
 		return err
 	}
@@ -252,7 +291,7 @@ func (s *Session) Rollback() error {
 		}
 	}
 	_ = os.RemoveAll(s.StageDir())
-	_ = os.Remove(filepath.Join(s.root, ".mycelium", "stage"))
+	pruneOrphanStages(s.root, "")
 	if err := journal.Remove(s.root); err != nil {
 		return err
 	}
@@ -272,7 +311,8 @@ func (s *Session) Close() error {
 
 // Abort clears staged temps, journal, and a stale lock. Does not delete
 // already-renamed destinations. Returns ErrNothingToAbort when neither
-// journal nor stale lock exists. A live lock refuses immediately.
+// journal nor stale lock exists and there are no orphan stages. A live lock
+// refuses immediately without mutating journal, stage, or lock.
 func Abort(root string) error {
 	info, err := lock.Inspect(root)
 	if err != nil {
@@ -288,8 +328,9 @@ func Abort(root string) error {
 		return err
 	}
 	stale := info.State == lock.Stale
+	orphans := listOrphanStages(root, "")
 
-	if !hasJournal && !stale {
+	if !hasJournal && !stale && len(orphans) == 0 {
 		return ErrNothingToAbort
 	}
 
@@ -298,17 +339,22 @@ func Abort(root string) error {
 			if r.Done {
 				continue
 			}
+			if err := validateContained(root, r.From); err != nil {
+				continue
+			}
 			from := filepath.Join(root, filepath.FromSlash(r.From))
 			_ = os.Remove(from)
 		}
 		if j.StagedDir != "" {
-			_ = os.RemoveAll(filepath.Join(root, filepath.FromSlash(j.StagedDir)))
+			if err := validateContained(root, j.StagedDir); err == nil {
+				_ = os.RemoveAll(filepath.Join(root, filepath.FromSlash(j.StagedDir)))
+			}
 		}
-		_ = os.Remove(filepath.Join(root, ".mycelium", "stage"))
 		if err := journal.Remove(root); err != nil {
 			return err
 		}
 	}
+	pruneOrphanStages(root, "")
 	if stale {
 		if err := lock.RemoveStale(root); err != nil {
 			return err
@@ -318,16 +364,99 @@ func Abort(root string) error {
 }
 
 // Detect reports leftover journal and/or stale lock for check.
+// Also prunes orphan stage dirs (keeps the journal's staged_dir if present).
 func Detect(root string) (hasJournal bool, staleLock bool, err error) {
-	_, jerr := journal.Load(root)
+	j, jerr := journal.Load(root)
+	keep := ""
 	if jerr == nil {
 		hasJournal = true
+		keep = j.StagedDir
 	} else if !errors.Is(jerr, journal.ErrNotExist) {
 		return false, false, jerr
 	}
+	pruneOrphanStages(root, keep)
 	info, err := lock.Inspect(root)
 	if err != nil {
 		return hasJournal, false, err
 	}
 	return hasJournal, info.State == lock.Stale, nil
+}
+
+// validateContained rejects absolute paths and .. escapes outside root.
+func validateContained(root, rel string) error {
+	if rel == "" {
+		return fmt.Errorf("%w: empty", ErrPathEscape)
+	}
+	if filepath.IsAbs(rel) {
+		return fmt.Errorf("%w: %q", ErrPathEscape, rel)
+	}
+	clean := filepath.Clean(filepath.FromSlash(rel))
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("%w: %q", ErrPathEscape, rel)
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	abs := filepath.Join(absRoot, clean)
+	sep := string(filepath.Separator)
+	if abs != absRoot && !strings.HasPrefix(abs, absRoot+sep) {
+		return fmt.Errorf("%w: %q", ErrPathEscape, rel)
+	}
+	return nil
+}
+
+func validateOpID(id string) error {
+	if id == "" || id == "." || id == ".." {
+		return fmt.Errorf("%w: op-id %q", ErrPathEscape, id)
+	}
+	if strings.ContainsRune(id, '/') || strings.ContainsRune(id, '\\') || strings.Contains(id, "..") {
+		return fmt.Errorf("%w: op-id %q", ErrPathEscape, id)
+	}
+	return nil
+}
+
+func validateStagedDir(root, stagedDir string) error {
+	if err := validateContained(root, stagedDir); err != nil {
+		return err
+	}
+	clean := filepath.Clean(filepath.FromSlash(stagedDir))
+	prefix := filepath.Join(".mycelium", "stage")
+	if clean != prefix && !strings.HasPrefix(clean, prefix+string(filepath.Separator)) {
+		return fmt.Errorf("%w: staged_dir %q", ErrPathEscape, stagedDir)
+	}
+	return nil
+}
+
+func stageRoot(root string) string {
+	return filepath.Join(root, ".mycelium", "stage")
+}
+
+func listOrphanStages(root, keepRel string) []string {
+	entries, err := os.ReadDir(stageRoot(root))
+	if err != nil {
+		return nil
+	}
+	keepName := ""
+	if keepRel != "" {
+		keepName = filepath.Base(filepath.FromSlash(keepRel))
+	}
+	var out []string
+	for _, e := range entries {
+		if keepName != "" && e.Name() == keepName {
+			continue
+		}
+		out = append(out, e.Name())
+	}
+	return out
+}
+
+// pruneOrphanStages removes .mycelium/stage/<id> dirs other than keepRel's base.
+// keepRel empty removes all stage children.
+func pruneOrphanStages(root, keepRel string) {
+	sr := stageRoot(root)
+	for _, name := range listOrphanStages(root, keepRel) {
+		_ = os.RemoveAll(filepath.Join(sr, name))
+	}
+	_ = os.Remove(sr)
 }

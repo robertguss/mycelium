@@ -264,19 +264,19 @@ func TestAbortNothing(t *testing.T) {
 	}
 }
 
-func TestCommitMarksDoneWhenDestExistsSourceGone(t *testing.T) {
+func TestResumeMarksDoneWhenDestExistsSourceGone(t *testing.T) {
 	root := t.TempDir()
-	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	s1, err := op.Begin(root, intent("DEC-001"), fixedNow())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Stage([]op.Staged{
+	if err := s1.Stage([]op.Staged{
 		{RelTo: "decisions/DEC-001.md", Content: []byte("artifact")},
 		{RelTo: "log.md", Content: []byte("log")},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	j := s.Journal()
+	j := s1.Journal()
 	from0 := filepath.Join(root, filepath.FromSlash(j.Renames[0].From))
 	to0 := filepath.Join(root, filepath.FromSlash(j.Renames[0].To))
 	if err := os.MkdirAll(filepath.Dir(to0), 0o755); err != nil {
@@ -285,20 +285,58 @@ func TestCommitMarksDoneWhenDestExistsSourceGone(t *testing.T) {
 	if err := os.Rename(from0, to0); err != nil {
 		t.Fatal(err)
 	}
-	// Simulate crash after Rename before Done Save: dest present, source gone, Done=false.
 	j.Renames[0].Done = false
 	if err := journal.Save(root, j); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Commit(); err != nil {
+	if err := s1.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s2, err := op.Begin(root, intent(""), fixedNow().Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s2.Commit(); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(to0)
 	if err != nil || string(b) != "artifact" {
 		t.Fatalf("dest = %q err=%v", b, err)
 	}
+	if _, err := os.Stat(filepath.Join(root, "log.md")); err != nil {
+		t.Fatal("second rename should complete on resume")
+	}
 	if _, err := journal.Load(root); !errors.Is(err, journal.ErrNotExist) {
 		t.Fatal("journal should finish")
+	}
+}
+
+func TestCommitRefusesWhenBothExist(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001.md", Content: []byte("a")}}); err != nil {
+		t.Fatal(err)
+	}
+	j := s.Journal()
+	from := filepath.Join(root, filepath.FromSlash(j.Renames[0].From))
+	to := filepath.Join(root, filepath.FromSlash(j.Renames[0].To))
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(to, []byte("other"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(from); err != nil {
+		t.Fatal(err)
+	}
+	err = s.Commit()
+	if err == nil {
+		t.Fatal("want conflict when both exist")
 	}
 }
 
@@ -336,4 +374,95 @@ func TestAbortRefusesLiveLock(t *testing.T) {
 		t.Fatalf("lock state = %v", info.State)
 	}
 	_ = s.Close()
+}
+
+func TestStageRejectsPathEscape(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	err = s.Stage([]op.Staged{{RelTo: "../outside.md", Content: []byte("x")}})
+	if !errors.Is(err, op.ErrPathEscape) {
+		t.Fatalf("want ErrPathEscape, got %v", err)
+	}
+	err = s.Stage([]op.Staged{{RelTo: "/abs.md", Content: []byte("x")}})
+	if !errors.Is(err, op.ErrPathEscape) {
+		t.Fatalf("want ErrPathEscape for abs, got %v", err)
+	}
+}
+
+func TestBeginRejectsEscapingOpID(t *testing.T) {
+	root := t.TempDir()
+	bad := intent("DEC-001")
+	bad.OpID = "../escape"
+	_, err := op.Begin(root, bad, fixedNow())
+	if !errors.Is(err, op.ErrPathEscape) {
+		t.Fatalf("want ErrPathEscape, got %v", err)
+	}
+}
+
+func TestAbortAndDetectPruneOrphanStages(t *testing.T) {
+	root := t.TempDir()
+	orphan := filepath.Join(root, ".mycelium", "stage", "orphan-op")
+	if err := os.MkdirAll(orphan, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(orphan, "tmp"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := op.Detect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+		t.Fatal("Detect must prune orphan stage dirs")
+	}
+
+	if err := os.MkdirAll(orphan, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(orphan, "tmp"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lock.Path(root), []byte("pid=2147483646\nstarted=2020-01-01T00:00:00Z\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := op.Abort(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+		t.Fatal("Abort must prune orphan stage dirs")
+	}
+}
+
+func TestDetectKeepsJournalStagePrunesOrphans(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001.md", Content: []byte("a")}}); err != nil {
+		t.Fatal(err)
+	}
+	keep := s.StageDir()
+	orphan := filepath.Join(root, ".mycelium", "stage", "other-op")
+	if err := os.MkdirAll(orphan, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	hasJ, _, err := op.Detect(root)
+	if err != nil || !hasJ {
+		t.Fatalf("hasJournal=%v err=%v", hasJ, err)
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Fatal("Detect must keep journal staged_dir")
+	}
+	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+		t.Fatal("Detect must prune other stage dirs")
+	}
 }
