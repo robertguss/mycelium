@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,8 @@ import (
 	"github.com/robertguss/mycelium/internal/cli"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/journal"
+	"github.com/robertguss/mycelium/internal/lock"
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/version"
 )
@@ -84,7 +87,7 @@ func TestUnknownCommandTeachingError(t *testing.T) {
 }
 
 func TestPhase01NotImplementedTeachingError(t *testing.T) {
-	for _, cmd := range []string{"check", "tier", "publish"} {
+	for _, cmd := range []string{"tier", "publish"} {
 		t.Run(cmd, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			code := cli.Run([]string{"mycelium", cmd}, &stdout, &stderr, cli.Deps{})
@@ -107,6 +110,90 @@ func TestPhase01NotImplementedTeachingError(t *testing.T) {
 			t.Fatalf("stderr=%q", stderr.String())
 		}
 	})
+}
+
+func TestCLINewIdeaOfflineThenCheck(t *testing.T) {
+	root := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	deps := cli.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)},
+		Runner:    rec,
+		Getwd:     func() (string, error) { return root, nil },
+		LookupEnv: func(string) string { return "" },
+	}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", "Check Me", "--offline"},
+		&stdout, &stderr, deps,
+	)
+	if code != 0 {
+		t.Fatalf("scaffold exit %d stderr=%q", code, stderr.String())
+	}
+	inst := filepath.Join(root, "check-me")
+	stdout.Reset()
+	stderr.Reset()
+	code = cli.Run(
+		[]string{"mycelium", "check", "--dir", inst},
+		&stdout, &stderr, deps,
+	)
+	if code != 0 {
+		t.Fatalf("check exit %d stderr=%q", code, stderr.String())
+	}
+	got := stdout.String()
+	wantLines := []string{
+		"mycelium check: ok",
+		"instance: check-me",
+		"state: spark",
+		"tier: focused",
+		"artifacts: 0",
+	}
+	for _, line := range wantLines {
+		if !strings.Contains(got, line) {
+			t.Fatalf("stdout missing %q in %q", line, got)
+		}
+	}
+}
+
+func TestCLICheckTeachingErrorFourLineShape(t *testing.T) {
+	root := t.TempDir()
+	rec := &execrun.Recording{Inner: execrun.Real{}}
+	deps := cli.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)},
+		Runner:    rec,
+		Getwd:     func() (string, error) { return root, nil },
+		LookupEnv: func(string) string { return "" },
+	}
+	var stdout, stderr bytes.Buffer
+	if code := cli.Run([]string{"mycelium", "new", "idea", "Shape", "--offline"}, &stdout, &stderr, deps); code != 0 {
+		t.Fatalf("scaffold: %s", stderr.String())
+	}
+	inst := filepath.Join(root, "shape")
+	if err := os.WriteFile(filepath.Join(inst, "scratch.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	code := cli.Run([]string{"mycelium", "check", "--dir", inst}, &stdout, &stderr, deps)
+	if code != 1 {
+		t.Fatalf("exit %d want 1", code)
+	}
+	errText := stderr.String()
+	lines := strings.Split(strings.TrimSuffix(errText, "\n"), "\n")
+	if len(lines) < 4 {
+		t.Fatalf("want >=4 teaching lines, got %d: %q", len(lines), errText)
+	}
+	if !strings.HasPrefix(lines[0], "mycelium: ") {
+		t.Fatalf("line0=%q", lines[0])
+	}
+	if !strings.HasPrefix(lines[1], "convention: ") {
+		t.Fatalf("line1=%q", lines[1])
+	}
+	if !strings.HasPrefix(lines[2], "contract: ") {
+		t.Fatalf("line2=%q", lines[2])
+	}
+	if !strings.HasPrefix(lines[3], "fix: ") {
+		t.Fatalf("line3=%q", lines[3])
+	}
 }
 
 func TestCLINewIdeaOffline(t *testing.T) {
@@ -236,3 +323,164 @@ func TestCLIEmptySlugRefuses(t *testing.T) {
 		t.Fatalf("empty-slug must not create target, got %v", entries)
 	}
 }
+
+func cliOfflineDeps(root string) cli.Deps {
+	return cli.Deps{
+		Clock:     clock.Fixed{T: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)},
+		Runner:    &execrun.Recording{Inner: execrun.Real{}},
+		Getwd:     func() (string, error) { return root, nil },
+		LookupEnv: func(string) string { return "" },
+	}
+}
+
+func scaffoldCLIInstance(t *testing.T, root, name string) string {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "new", "idea", name, "--offline"},
+		&stdout, &stderr, cliOfflineDeps(root),
+	)
+	if code != 0 {
+		t.Fatalf("scaffold exit %d stderr=%q", code, stderr.String())
+	}
+	return filepath.Join(root, "abort-me")
+}
+
+func TestCLICheckAbortJournal(t *testing.T) {
+	root := t.TempDir()
+	inst := scaffoldCLIInstance(t, root, "Abort Me")
+	if err := os.MkdirAll(filepath.Join(inst, ".mycelium", "stage", "leftover"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "new",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".mycelium/stage/leftover",
+		Argv:          []string{"new", "decision", "X"},
+	}
+	if err := journal.Save(inst, j); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "check", "--dir", inst, "--abort-journal"},
+		&stdout, &stderr, cliOfflineDeps(root),
+	)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if _, err := journal.Load(inst); !errors.Is(err, journal.ErrNotExist) {
+		t.Fatal("journal should be gone")
+	}
+}
+
+func TestCLICheckAbortJournalSurvivesInstanceFrom(t *testing.T) {
+	root := t.TempDir()
+	inst := scaffoldCLIInstance(t, root, "Abort Me")
+	readme := filepath.Join(inst, "README.md")
+	manifestPath := filepath.Join(inst, "mycelium.toml")
+	rb, err := os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mb, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(inst, ".mycelium", "stage", "op1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "scaffold",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".mycelium/stage/op1",
+		Argv:          []string{"new", "idea", "X"},
+		Renames: []journal.Rename{
+			{From: "README.md", To: "README.md", Done: false},
+			{From: "mycelium.toml", To: "mycelium.toml", Done: false},
+		},
+	}
+	if err := journal.Save(inst, j); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "check", "--dir", inst, "--abort-journal"},
+		&stdout, &stderr, cliOfflineDeps(root),
+	)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if b, err := os.ReadFile(readme); err != nil || !bytes.Equal(b, rb) {
+		t.Fatalf("README.md must survive")
+	}
+	if b, err := os.ReadFile(manifestPath); err != nil || !bytes.Equal(b, mb) {
+		t.Fatalf("mycelium.toml must survive")
+	}
+	if _, err := journal.Load(inst); !errors.Is(err, journal.ErrNotExist) {
+		t.Fatal("journal should be gone")
+	}
+}
+
+func TestCLICheckAbortNothing(t *testing.T) {
+	root := t.TempDir()
+	inst := scaffoldCLIInstance(t, root, "Abort Me")
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "check", "--dir", inst, "--abort-journal"},
+		&stdout, &stderr, cliOfflineDeps(root),
+	)
+	if code != 1 {
+		t.Fatalf("exit %d want 1 stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "nothing to abort") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+}
+
+func TestCLICheckAbortLiveLock(t *testing.T) {
+	root := t.TempDir()
+	inst := scaffoldCLIInstance(t, root, "Abort Me")
+	held, err := lock.Acquire(inst, time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Release()
+	if err := os.MkdirAll(filepath.Join(inst, ".mycelium", "stage", "op1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "new",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".mycelium/stage/op1",
+		Argv:          []string{"new", "decision", "X"},
+	}
+	if err := journal.Save(inst, j); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := cli.Run(
+		[]string{"mycelium", "check", "--dir", inst, "--abort-journal"},
+		&stdout, &stderr, cliOfflineDeps(root),
+	)
+	if code != 1 {
+		t.Fatalf("exit %d want 1 stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "lock") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+	if _, err := journal.Load(inst); err != nil {
+		t.Fatal("journal must remain under live lock")
+	}
+	info, err := lock.Inspect(inst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State != lock.Live {
+		t.Fatalf("lock state=%v", info.State)
+	}
+}
+

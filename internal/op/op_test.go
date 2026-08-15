@@ -466,3 +466,139 @@ func TestDetectKeepsJournalStagePrunesOrphans(t *testing.T) {
 		t.Fatal("Detect must prune other stage dirs")
 	}
 }
+
+func TestStagedDirDotRefused(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "KEEP.md")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "scaffold",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".",
+		Argv:          []string{"new", "idea", "X", "--offline"},
+	}
+	if err := journal.Save(root, j); err != nil {
+		t.Fatal(err)
+	}
+	_, err := op.Begin(root, op.Intent{
+		Op:    "scaffold",
+		Title: "",
+		Argv:  []string{"new", "idea", "X", "--offline"},
+	}, fixedNow())
+	if !errors.Is(err, op.ErrPathEscape) {
+		t.Fatalf("Begin want ErrPathEscape for staged_dir=\".\", got %v", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("instance must survive refused Begin")
+	}
+}
+
+func TestAbortStagedDirDotDoesNotWipeInstance(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "KEEP.md")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".mycelium"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "scaffold",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".",
+		Argv:          []string{"new", "idea", "X"},
+		Renames: []journal.Rename{
+			{From: "staged.tmp", To: "dest.md", Done: false},
+		},
+	}
+	if err := journal.Save(root, j); err != nil {
+		t.Fatal(err)
+	}
+	if err := op.Abort(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("Abort must not RemoveAll instance root when staged_dir is \".\"")
+	}
+	if _, err := journal.Load(root); !errors.Is(err, journal.ErrNotExist) {
+		t.Fatal("journal should still be cleared")
+	}
+}
+
+func TestAbortDoesNotRemoveInstancePathsInFrom(t *testing.T) {
+	root := t.TempDir()
+	readme := filepath.Join(root, "README.md")
+	manifest := filepath.Join(root, "mycelium.toml")
+	if err := os.WriteFile(readme, []byte("readme"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte("toml"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".mycelium", "stage", "op1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "scaffold",
+		StartedAt:     "2026-08-15T12:00:00Z",
+		StagedDir:     ".mycelium/stage/op1",
+		Argv:          []string{"new", "idea", "X"},
+		Renames: []journal.Rename{
+			{From: "README.md", To: "README.md", Done: false},
+			{From: "mycelium.toml", To: "mycelium.toml", Done: false},
+		},
+	}
+	if err := journal.Save(root, j); err != nil {
+		t.Fatal(err)
+	}
+	if err := op.Abort(root); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(readme); err != nil || string(b) != "readme" {
+		t.Fatalf("README.md must survive Abort, got %q err=%v", b, err)
+	}
+	if b, err := os.ReadFile(manifest); err != nil || string(b) != "toml" {
+		t.Fatalf("mycelium.toml must survive Abort, got %q err=%v", b, err)
+	}
+	if _, err := journal.Load(root); !errors.Is(err, journal.ErrNotExist) {
+		t.Fatal("journal should be gone")
+	}
+}
+
+func TestDetectSkipsPruneWhenLockLive(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001.md", Content: []byte("a")}}); err != nil {
+		t.Fatal(err)
+	}
+	keep := s.StageDir()
+	orphan := filepath.Join(root, ".mycelium", "stage", "other-op")
+	if err := os.MkdirAll(orphan, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(orphan, "tmp"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hasJ, stale, err := op.Detect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasJ || stale {
+		t.Fatalf("hasJournal=%v stale=%v", hasJ, stale)
+	}
+	if _, err := os.Stat(orphan); err != nil {
+		t.Fatal("Detect must not prune orphan stages under a live lock")
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Fatal("journal staged_dir must remain")
+	}
+}
