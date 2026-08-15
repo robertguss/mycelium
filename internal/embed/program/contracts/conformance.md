@@ -3,7 +3,7 @@
 Structure only (DEC-005).
 Checks never grade prose or thinking quality.
 
-## Must-implement checks (14)
+## Must-implement checks (17)
 
 1. Manifest present (`mycelium.toml`) and parses; required fields valid per
    `program/contracts/manifest.md`.
@@ -30,18 +30,43 @@ Checks never grade prose or thinking quality.
 13. `briefs/` is an allowed top-level path (not an ID-to-path home).
 14. If the log contains a `wake` op, `briefs/LATEST.md` must exist and pass
     the five wake H2s (`program/contracts/wake.md`).
+15. Agreement-conditional OQ headings per `program/contracts/sparring.md`.
+    Invalid `agreement` → FAIL.
+16. If `CONTEXT.md` exists: H1 `# Glossary`; any H2 ⇒ H3 `Definition`. Empty
+    glossary legal.
+17. If a DEC contains `## Dissent`, the section must contain at least one
+    resolvable `OQ-###` or `ASM-###`. Heading absent → pass.
 
 ## Lift timing
 
-This contract states the PHASE-02 rules now. Implementation lands later:
+Items 1–14 stay as written (PHASE-02). Items 15–17 land by slice:
 
-- Slice 1: parsers only (no check-rule change yet).
-- Slice 2: `index.md` bind may land; `index.md` + `briefs/` allowed top-level.
-- Slice 3: clarified fail lift + simmering revisit-grammar check + wake-brief
-  check + log-ops extension.
+| Slice | Check behavior |
+| --- | --- |
+| 1 | Schema `required_sections` drops `Crux`. Schema-driven check stops requiring Crux on every OQ. **No** IFF bind yet. |
+| 2 | Check calls `internal/sparring` for each `questions/OQ-*.md`. IFF rules bind (item 15). |
+| 3 | `CONTEXT.md` glossary rules bind (item 16). |
+| 4 | Optional DEC Dissent rule binds (item 17). |
 
 Do not require a wake brief on instances that never simmered. Do not grade
 brief prose. Do not require N artifacts.
+
+## What check must not do
+
+| Temptation | Verdict |
+| --- | --- |
+| Require any OQ on spark / exploring / any state | **No.** Spark with zero questions still passes. |
+| Require `## Crux` or `## Reasons` on `aligned` or `open` | **No.** |
+| Require H3 Human/Agent on `aligned` or `open` | **No.** |
+| Grade Positions / Reasons / Crux / Definition prose | **No.** DEC-005. |
+| Score substantive vs bare | **No.** Human or adversarial reviewer. |
+| Require a periodic assumption-audit file | **No.** |
+| Require `## Dissent` on existing or new DECs | **No.** |
+| Add a required `index.md` H2 | **No.** |
+| Fail extra Crux/Reasons on `open`/`aligned` | **No.** |
+| Keep agreement history / fail a flip back to `open` | **No.** |
+| Add `think` / `spar` to the log-op regex | **No.** |
+| Call network / `gh` / read `GH_TOKEN` | **No.** |
 
 ## Teaching errors
 

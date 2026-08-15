@@ -21,10 +21,6 @@ date = "{{DATE}}"
 
 <!-- fill -->
 
-## Crux
-
-<!-- fill -->
-
 ## Disposition
 
 <!-- fill -->

@@ -8,7 +8,6 @@ required_sections = [
   "Question",
   "Context",
   "Positions",
-  "Crux",
   "Disposition",
 ]
 
