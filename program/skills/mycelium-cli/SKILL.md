@@ -3,9 +3,9 @@ name: mycelium-cli
 description: >
   Operate a Mycelium idea instance with the mycelium CLI: scaffold, generate
   registered artifacts, check conformance, change tier, lifecycle transitions,
-  wake, index, status, and publish. Use when working inside an idea repo that
-  has mycelium.toml, or when the human asks for mycelium commands. Does not
-  commit to git unless the human asks.
+  wake, index, status, publish, and supersede. Use when working inside an idea
+  repo that has mycelium.toml, or when the human asks for mycelium commands.
+  Does not commit to git unless the human asks.
 ---
 
 # Mycelium CLI
@@ -25,8 +25,25 @@ description: >
 | `mycelium status --all [--offline]` | Portfolio listing (local + GitHub when available) |
 | `mycelium index [--dir PATH]` | Rebuild `index.md` |
 | `mycelium publish [--dir PATH]` | GitHub create/topic when authenticated |
+| `mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]` | Artifact supersede (bidirectional cross-links + log line) |
 
 Exit `0` on success, `1` on failure.
+
+## Supersede
+
+`mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]` is **artifact-level**.
+It sets OLD `status = "Superseded"` + `superseded_by`, and NEW `supersedes`.
+It does **not** change idea `state` and does **not** implement `handed-off`.
+
+Eligible: DEC, ASM, EVD, SPK. Refuse (teaching error, exit 1, no writes):
+
+- ineligible type (including OQ — open a new question instead)
+- idea-state token as an ID (`spark`, `exploring`, …)
+- OLD already Superseded
+- NEW already has `supersedes` (one-to-one this phase)
+- different namespace, missing IDs, OLD == NEW
+
+Idea lifecycle stays `mycelium state` / `wake`.
 
 ## Sparring
 

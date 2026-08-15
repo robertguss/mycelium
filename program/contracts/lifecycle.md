@@ -82,7 +82,7 @@ Never `git add`. Never `git commit`.
 
 `mycelium index` uses the same protocol with journal `op=index`. `index` does
 **not** append a log line. Check log-ops stay
-`scaffold|new|tier|publish|check|state|wake`.
+`scaffold|new|tier|publish|check|state|wake|supersede`.
 
 ## Illegal edge
 

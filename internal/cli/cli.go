@@ -19,6 +19,7 @@ import (
 	"github.com/robertguss/mycelium/internal/scaffold"
 	"github.com/robertguss/mycelium/internal/statecmd"
 	"github.com/robertguss/mycelium/internal/statuscmd"
+	"github.com/robertguss/mycelium/internal/supersedecmd"
 	"github.com/robertguss/mycelium/internal/teach"
 	"github.com/robertguss/mycelium/internal/tiercmd"
 	"github.com/robertguss/mycelium/internal/version"
@@ -37,6 +38,7 @@ Usage:
   mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]
   mycelium wake [--dir PATH]
   mycelium status [--dir PATH] [--all] [--root PATH] [--archived] [--offline]
+  mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]
   mycelium -h | --help
 `
 
@@ -98,6 +100,8 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return cmdWake(args[1:], stdout, stderr, deps)
 	case "status":
 		return cmdStatus(args[1:], stdout, stderr, deps)
+	case "supersede":
+		return cmdSupersede(args[1:], stdout, stderr, deps)
 	default:
 		return teach.Write(stderr,
 			fmt.Sprintf("unknown command %q", cmd),
@@ -467,6 +471,43 @@ Examples:
 	})
 }
 
+func cmdSupersede(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseSupersedeFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, "Usage: mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]")
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"framework/phases/PHASE-05-implementation-brief.md",
+			"usage: mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-05-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	argv := append([]string{"supersede"}, args...)
+	return supersedecmd.Run(supersedecmd.Options{
+		OldID: opts.oldID,
+		NewID: opts.newID,
+		Dir:   opts.dir,
+		Cwd:   cwd,
+		Argv:  argv,
+	}, supersedecmd.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
 func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseCheckFlags(args)
 	if err == errHelp {
@@ -599,6 +640,55 @@ type statusFlags struct {
 type tierFlags struct {
 	tier string
 	dir  string
+}
+
+type supersedeFlags struct {
+	oldID string
+	newID string
+	dir   string
+}
+
+func parseSupersedeFlags(args []string) (supersedeFlags, error) {
+	var out supersedeFlags
+	var positionals []string
+	bySeen := false
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--by":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("supersede requires <OLD-ID> --by <NEW-ID>")
+			}
+			i++
+			out.newID = args[i]
+			bySeen = true
+		case strings.HasPrefix(a, "--by="):
+			out.newID = strings.TrimPrefix(a, "--by=")
+			bySeen = true
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			positionals = append(positionals, a)
+		}
+	}
+	if len(positionals) == 0 || !bySeen || strings.TrimSpace(out.newID) == "" {
+		return out, fmt.Errorf("supersede requires <OLD-ID> --by <NEW-ID>")
+	}
+	if len(positionals) > 1 {
+		return out, fmt.Errorf("unexpected argument %q", positionals[1])
+	}
+	out.oldID = positionals[0]
+	return out, nil
 }
 
 func parseTierFlags(args []string) (tierFlags, error) {
