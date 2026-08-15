@@ -11,9 +11,17 @@ Use the `mycelium` CLI for scaffolded operations:
 - `mycelium new <type> <title>` — generate a registered artifact
 - `mycelium check` — verify convention conformance
 - `mycelium tier <tier>` — raise or lower rigor tier (`focused` | `standard` | `high-assurance`)
+- `mycelium state <target>` — lifecycle transition (flags: `--dir`, `--revisit`)
+- `mycelium wake` — simmering → exploring ritual (writes re-entry brief)
+- `mycelium status` — single-instance status (`--all` for portfolio; `--offline` when hermetic)
+- `mycelium index` — rebuild `index.md`
 - `mycelium publish` — create/update the GitHub repo for this idea
 
 Global exit codes: `0` success, `1` failure. Teaching errors go to stderr.
+
+## Skills
+
+New scaffolds emit `.agents/skills/{mycelium-cli,spark,wake,portfolio}/SKILL.md`. `tier`, `index`, `state`, and `wake` do not retrofit skills into older instances. Instances scaffolded before these skills: re-scaffold or copy skills manually from `program/skills/`.
 
 ## Manual floor
 
