@@ -366,7 +366,9 @@ Sequential; each phase ends verifiable. Stops at milestones, per house rule.
   sliver, which capabilities beyond council become packs, rolls into
   PHASE-04.
 - **OQ-004** Handoff packet format details and the pstack playbook mapping.
-- **OQ-005** Repo rename timing and instance-topic conventions.
+- **OQ-005** Resolved 2026-08-14: the master repository is named
+  `mycelium`; scaffolded instance repositories receive the `idea` topic
+  automatically (see Cross-idea operations).
 - **OQ-006** Whether the blueprint itself gets a council review before
   PHASE-01 begins (recommended: yes, as the council contract's dogfood).
 - **OQ-007** Generator strictness for stage-scoped ID ranges: warn or refuse
