@@ -44,7 +44,7 @@ type Result struct {
 
 var (
 	ErrNotInstance = errors.New("check: not a mycelium instance")
-	linkRE         = regexp.MustCompile(`\b(DEC|ASM|EVD|SPK|FND|REC|REQ|OQ|RSK|PHASE|MS)-[0-9]+\b`)
+	linkRE         = regexp.MustCompile(`\b(DEC|ASM|EVD|SPK|FND|REC|REQ|OQ|RSK|PHASE|MS|CMP|RPT|RCL)-[0-9]+\b`)
 	logLineRE      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake)\t(\S+)\t`)
 	dateRE         = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 	h2RE           = regexp.MustCompile(`(?m)^## (.+)$`)
@@ -113,7 +113,7 @@ func Run(root string) Result {
 
 	schemas, err := loadSchemas(root)
 	if err != nil {
-		add(fmt.Sprintf("cannot load schemas: %v", err), "schema", "program/contracts/conformance.md", "restore program/templates/*.schema.toml")
+		add(fmt.Sprintf("cannot load schemas: %v", err), "schema", "program/contracts/conformance.md", "restore registered *.schema.toml files under program/")
 		return r
 	}
 	homeByNS := map[string]string{}
@@ -222,21 +222,13 @@ type artifactFile struct {
 }
 
 func loadSchemas(root string) ([]schema.Schema, error) {
-	dir := filepath.Join(root, "program", "templates")
-	entries, err := os.ReadDir(dir)
+	entries, err := schema.Discover(root)
 	if err != nil {
 		return nil, err
 	}
-	var out []schema.Schema
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".schema.toml") {
-			continue
-		}
-		s, err := schema.Load(filepath.Join(dir, e.Name()))
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", e.Name(), err)
-		}
-		out = append(out, s)
+	out := make([]schema.Schema, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, entry.Schema)
 	}
 	if len(out) == 0 {
 		return nil, errors.New("no *.schema.toml found")
@@ -744,6 +736,11 @@ func checkLinks(root string, arts []artifactFile, homeByNS map[string]string, ad
 		text := string(b)
 		if doc, err := metadata.Parse(b); err == nil {
 			text = doc.Body
+			for _, value := range doc.Meta {
+				if str, ok := value.(string); ok {
+					text += "\n" + str
+				}
+			}
 		}
 		for _, m := range linkRE.FindAllString(text, -1) {
 			id, err := idpath.Parse(m)

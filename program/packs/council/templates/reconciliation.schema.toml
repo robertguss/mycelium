@@ -1,0 +1,21 @@
+namespace = "RCL"
+home = "reviews/reconciliations"
+filename_pattern = "RCL-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", "title", "date", "commissioning", "rung"]
+required_sections = [
+  "Convergence",
+  "Material disagreement",
+  "Evidence unique to one report",
+  "Contradictory evidence",
+  "Different assumptions",
+  "Different scope interpretations",
+  "Recommendations independently supported",
+  "Questions requiring another spike",
+  "Final reconciled recommendation",
+  "Retained dissent",
+]
+
+[enums.rung]
+values = ["council"]

@@ -103,3 +103,83 @@ func TestLoadEmbeddedDecisionSchema(t *testing.T) {
 		t.Fatal("missing status enum")
 	}
 }
+
+func TestCouncilPackSchemasParse(t *testing.T) {
+	cases := map[string]string{
+		"commissioning":  "CMP",
+		"model-report":   "RPT",
+		"reconciliation": "RCL",
+	}
+	for key, namespace := range cases {
+		t.Run(key, func(t *testing.T) {
+			path := filepath.Join("..", "..", "program", "packs", "council", "templates", key+".schema.toml")
+			s, err := schema.Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.Namespace != namespace || s.Digits != 3 || s.StageScoped {
+				t.Fatalf("got %+v", s)
+			}
+		})
+	}
+}
+
+func TestDiscoverCoreAndPackTemplates(t *testing.T) {
+	root := t.TempDir()
+	coreDir := filepath.Join(root, "program", "templates")
+	packDir := filepath.Join(root, "program", "packs", "council", "templates")
+	if err := os.MkdirAll(coreDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(packDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(coreDir, "decision.schema.toml"), []byte(decisionSchema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(coreDir, "decision.md"), []byte("decision"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commissioning := `namespace = "CMP"
+home = "reviews/commissioning"
+filename_pattern = "CMP-{NNN}-{slug}.md"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id"]
+required_sections = ["Prompt"]
+`
+	if err := os.WriteFile(filepath.Join(packDir, "commissioning.schema.toml"), []byte(commissioning), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packDir, "commissioning.md"), []byte("commissioning"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := schema.Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasEntry(entries, "decision") || !hasEntry(entries, "commissioning") {
+		t.Fatalf("entries=%v", entries)
+	}
+
+	if err := os.RemoveAll(filepath.Join(root, "program", "packs")); err != nil {
+		t.Fatal(err)
+	}
+	entries, err = schema.Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasEntry(entries, "decision") || hasEntry(entries, "commissioning") {
+		t.Fatalf("entries without pack=%v", entries)
+	}
+}
+
+func hasEntry(entries []schema.Entry, key string) bool {
+	for _, entry := range entries {
+		if entry.Key == key {
+			return true
+		}
+	}
+	return false
+}

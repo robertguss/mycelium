@@ -127,7 +127,7 @@ func Run(opts Options, deps Deps) int {
 			fmt.Sprintf("cannot list registered types: %v", err),
 			"schema",
 			"program/contracts/conformance.md",
-			"restore program/templates/*.schema.toml",
+			"restore registered schema and template files under program/",
 		)
 	}
 	if !contains(keys, typeKey) {
@@ -135,27 +135,27 @@ func Run(opts Options, deps Deps) int {
 			fmt.Sprintf("unknown type %q (registered: %s)", typeKey, strings.Join(keys, ", ")),
 			"registered-types",
 			"program/contracts/naming.md",
-			"pass a registered type key from program/templates/*.schema.toml",
+			"pass a registered type key from the listed filesystem templates",
 		)
 	}
 
-	sch, err := schema.Load(filepath.Join(root, "program", "templates", typeKey+".schema.toml"))
+	entry, err := findType(root, typeKey)
 	if err != nil {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("cannot load schema for %q: %v", typeKey, err),
 			"schema",
 			"program/contracts/conformance.md",
-			"restore program/templates/"+typeKey+".schema.toml",
+			"restore the registered schema for "+typeKey,
 		)
 	}
-	tplPath := filepath.Join(root, "program", "templates", typeKey+".md")
-	tplBytes, err := os.ReadFile(tplPath)
+	sch := entry.Schema
+	tplBytes, err := os.ReadFile(entry.TemplatePath)
 	if err != nil {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("cannot read template for %q: %v", typeKey, err),
 			"schema",
 			"program/contracts/conformance.md",
-			"restore program/templates/"+typeKey+".md",
+			"restore the registered template for "+typeKey,
 		)
 	}
 
@@ -450,28 +450,35 @@ func rollbackOrClose(sess *op.Session) {
 }
 
 func listTypeKeys(root string) ([]string, error) {
-	dir := filepath.Join(root, "program", "templates")
-	entries, err := os.ReadDir(dir)
+	entries, err := schema.Discover(root)
 	if err != nil {
 		return nil, err
 	}
 	var keys []string
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".schema.toml") {
+	for _, entry := range entries {
+		if _, err := os.Stat(entry.TemplatePath); err != nil {
 			continue
 		}
-		key := strings.TrimSuffix(name, ".schema.toml")
-		if _, err := os.Stat(filepath.Join(dir, key+".md")); err != nil {
-			continue
-		}
-		keys = append(keys, key)
+		keys = append(keys, entry.Key)
 	}
 	sort.Strings(keys)
 	if len(keys) == 0 {
 		return nil, errors.New("no type schemas found")
 	}
 	return keys, nil
+}
+
+func findType(root, key string) (schema.Entry, error) {
+	entries, err := schema.Discover(root)
+	if err != nil {
+		return schema.Entry{}, err
+	}
+	for _, entry := range entries {
+		if entry.Key == key {
+			return entry, nil
+		}
+	}
+	return schema.Entry{}, fmt.Errorf("type %q is not registered", key)
 }
 
 func contains(keys []string, key string) bool {

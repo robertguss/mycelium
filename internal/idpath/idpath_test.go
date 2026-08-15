@@ -137,6 +137,35 @@ func TestFormatZeroPad(t *testing.T) {
 	}
 }
 
+func TestNestedReviewHomesRoundTrip(t *testing.T) {
+	cases := map[string]string{
+		"CMP": "reviews/commissioning/CMP-001-sqlite.md",
+		"RPT": "reviews/reports/RPT-001-sqlite.md",
+		"RCL": "reviews/reconciliations/RCL-001-sqlite.md",
+	}
+	for namespace, want := range cases {
+		t.Run(namespace, func(t *testing.T) {
+			path, err := idpath.Format(namespace, 1, "sqlite")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if path != want {
+				t.Fatalf("path=%q want %q", path, want)
+			}
+			id, gotSlug, err := idpath.ParsePath(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if id.NS != namespace || id.N != 1 || gotSlug != "sqlite" {
+				t.Fatalf("parsed=%+v slug=%q", id, gotSlug)
+			}
+		})
+	}
+	if _, _, err := idpath.ParsePath("reviews/CMP-001-sqlite.md"); err == nil {
+		t.Fatal("flat reviews path must fail")
+	}
+}
+
 func TestFormatDigitWidth(t *testing.T) {
 	_, err := idpath.Format("DEC", 1000, "x")
 	if !errors.Is(err, idpath.ErrFormat) {

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -24,6 +26,14 @@ type Schema struct {
 	RequiredFrontMatter []string
 	RequiredSections    []string
 	Enums               map[string][]string
+}
+
+// Entry is one filesystem-registered type and its source paths.
+type Entry struct {
+	Key          string
+	SchemaPath   string
+	TemplatePath string
+	Schema       Schema
 }
 
 // Parse decodes a *.schema.toml document from bytes.
@@ -102,6 +112,69 @@ func Load(path string) (Schema, error) {
 		return Schema{}, err
 	}
 	return Parse(data)
+}
+
+// Discover scans core templates followed by pack templates. Duplicate stems
+// retain the first registration.
+func Discover(root string) ([]Entry, error) {
+	seen := map[string]struct{}{}
+	var out []Entry
+	coreDir := filepath.Join(root, "program", "templates")
+	if err := discoverDir(coreDir, false, seen, &out); err != nil {
+		return nil, err
+	}
+
+	packsDir := filepath.Join(root, "program", "packs")
+	packs, err := os.ReadDir(packsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+		return nil, err
+	}
+	for _, pack := range packs {
+		if !pack.IsDir() {
+			continue
+		}
+		dir := filepath.Join(packsDir, pack.Name(), "templates")
+		if err := discoverDir(dir, true, seen, &out); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func discoverDir(dir string, optional bool, seen map[string]struct{}, out *[]Entry) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if optional && os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".schema.toml") {
+			continue
+		}
+		key := strings.TrimSuffix(name, ".schema.toml")
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		schemaPath := filepath.Join(dir, name)
+		s, err := Load(schemaPath)
+		if err != nil {
+			return fmt.Errorf("%s: %w", schemaPath, err)
+		}
+		seen[key] = struct{}{}
+		*out = append(*out, Entry{
+			Key:          key,
+			SchemaPath:   schemaPath,
+			TemplatePath: filepath.Join(dir, key+".md"),
+			Schema:       s,
+		})
+	}
+	return nil
 }
 
 func reqString(raw map[string]any, key string) (string, error) {

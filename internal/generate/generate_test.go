@@ -120,7 +120,7 @@ func TestNewQuestionOmitsCruxAndReasons(t *testing.T) {
 	}
 }
 
-func TestGenerateAllElevenTypesThenCheck(t *testing.T) {
+func TestGenerateAllCoreTypesThenCheck(t *testing.T) {
 	cwd := t.TempDir()
 	inst := scaffoldOffline(t, cwd, "All Types")
 	writeRanges(t, inst)
@@ -128,9 +128,15 @@ func TestGenerateAllElevenTypesThenCheck(t *testing.T) {
 
 	titles := map[string]string{}
 	for _, typ := range idpath.Types() {
+		if strings.HasPrefix(typ.Home, "reviews/") {
+			continue
+		}
 		titles[typ.Key] = "Sample " + typ.Key
 	}
 	for _, typ := range idpath.Types() {
+		if strings.HasPrefix(typ.Home, "reviews/") {
+			continue
+		}
 		code, out, errText := runNew(t, deps, "new", typ.Key, titles[typ.Key], "--dir", inst)
 		if code != 0 {
 			t.Fatalf("new %s exit %d stderr=%q", typ.Key, code, errText)

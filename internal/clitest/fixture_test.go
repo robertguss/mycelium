@@ -30,6 +30,9 @@ func TestHermeticFixtureBinary(t *testing.T) {
 	clitest.WriteRanges(t, inst)
 
 	for _, typ := range idpath.Types() {
+		if strings.HasPrefix(typ.Home, "reviews/") {
+			continue
+		}
 		code, _, stderr = clitest.Run(
 			t,
 			bin,
