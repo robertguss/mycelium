@@ -250,6 +250,9 @@ func TestSkeletonAndSkillExist(t *testing.T) {
 		"program/skeleton/gitignore",
 		"program/skeleton/index.md",
 		"program/skills/mycelium-cli/SKILL.md",
+		"program/skills/spark/SKILL.md",
+		"program/skills/wake/SKILL.md",
+		"program/skills/portfolio/SKILL.md",
 	}
 	for _, rel := range paths {
 		p := filepath.Join(root, rel)
@@ -285,8 +288,13 @@ func TestEmbedProgramHasRegisteredContent(t *testing.T) {
 			t.Errorf("embed missing tier %s: %v", name, err)
 		}
 	}
-	if _, err := embed.Program.ReadFile("program/skills/mycelium-cli/SKILL.md"); err != nil {
-		t.Errorf("embed missing skill: %v", err)
+	for _, skill := range []string{
+		"mycelium-cli", "spark", "wake", "portfolio",
+	} {
+		path := "program/skills/" + skill + "/SKILL.md"
+		if _, err := embed.Program.ReadFile(path); err != nil {
+			t.Errorf("embed missing skill %s: %v", skill, err)
+		}
 	}
 }
 

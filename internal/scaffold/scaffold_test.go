@@ -47,6 +47,9 @@ func TestNewIdeaOfflineScaffold(t *testing.T) {
 	mustExist(t, inst, "AGENTS.md")
 	mustExist(t, inst, ".gitignore")
 	mustExist(t, inst, ".agents/skills/mycelium-cli/SKILL.md")
+	mustExist(t, inst, ".agents/skills/spark/SKILL.md")
+	mustExist(t, inst, ".agents/skills/wake/SKILL.md")
+	mustExist(t, inst, ".agents/skills/portfolio/SKILL.md")
 	mustExist(t, inst, "program/README.md")
 	mustExist(t, inst, "program/tiers/focused.toml")
 

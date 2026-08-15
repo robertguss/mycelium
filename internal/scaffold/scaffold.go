@@ -411,6 +411,9 @@ func buildFiles(ideaName, ideaSlug, tier, date, cliVersion string) ([]op.Staged,
 		{"program/skeleton/AGENTS.md", "AGENTS.md"},
 		{"program/skeleton/gitignore", ".gitignore"},
 		{"program/skills/mycelium-cli/SKILL.md", ".agents/skills/mycelium-cli/SKILL.md"},
+		{"program/skills/spark/SKILL.md", ".agents/skills/spark/SKILL.md"},
+		{"program/skills/wake/SKILL.md", ".agents/skills/wake/SKILL.md"},
+		{"program/skills/portfolio/SKILL.md", ".agents/skills/portfolio/SKILL.md"},
 	} {
 		b, err := myceliumembed.Program.ReadFile(name.embed)
 		if err != nil {
