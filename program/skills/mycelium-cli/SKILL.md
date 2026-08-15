@@ -34,9 +34,22 @@ Sparring surface is `mycelium new question`, `mycelium new assumption`,
 `mycelium new decision`, `mycelium new spike`, `mycelium check`, plus the
 `thinking` skill. No `think` / `spar` verb.
 
+## Perspective ladder
+
+When `program/packs/council/` is present, ladder surface is
+`mycelium new commissioning`, `mycelium new model-report`,
+`mycelium new reconciliation`, `mycelium check`, plus pack skills `council` and
+`second-opinion`. **No portable council CLI.** No `council` / `ladder` /
+`replicate` verb.
+
+Runtimes that cannot fan out skip rungs 2–3; sparring still applies.
+
 ## Skills on scaffold
 
-New `mycelium new idea` scaffolds emit `.agents/skills/{mycelium-cli,spark,wake,portfolio,thinking}/SKILL.md`. `tier`, `index`, `state`, and `wake` do not retrofit skills. Existing instances: re-scaffold or copy `thinking` (and other skills) manually.
+New `mycelium new idea` scaffolds emit
+`.agents/skills/{mycelium-cli,spark,wake,portfolio,thinking,council,second-opinion}/SKILL.md`
+when the pack is present. `tier`, `index`, `state`, and `wake` do not retrofit
+skills. Existing instances: re-scaffold or copy the pack **manually**.
 
 ## Manual floor
 
