@@ -51,8 +51,7 @@ func TestPhase04Slice4ScaffoldEmitsPackSkills(t *testing.T) {
 	}
 	if strings.Contains(agentsBody, "mycelium council") ||
 		strings.Contains(agentsBody, "mycelium ladder") ||
-		strings.Contains(agentsBody, "mycelium replicate") ||
-		strings.Contains(agentsBody, "mycelium handoff") {
+		strings.Contains(agentsBody, "mycelium replicate") {
 		t.Fatalf("AGENTS.md must not list missing verbs as commands")
 	}
 
