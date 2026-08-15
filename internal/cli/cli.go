@@ -10,14 +10,6 @@ import (
 	"github.com/robertguss/mycelium/internal/version"
 )
 
-// phase01Names are commissioned PHASE-01 commands not implemented in Slice 1.
-var phase01Names = map[string]struct{}{
-	"new":     {},
-	"check":   {},
-	"tier":    {},
-	"publish": {},
-}
-
 const usage = `mycelium — convention-over-configuration thinking CLI
 
 Usage:
@@ -30,11 +22,11 @@ PHASE-01 commands (later slices): new, check, tier, publish
 // Main runs the CLI with argv (os.Args style: argv[0] is the program name).
 // Exit 0 on success, 1 on failure.
 func Main(argv []string) int {
-	return RunForTest(argv, os.Stdout, os.Stderr)
+	return Run(argv, os.Stdout, os.Stderr)
 }
 
-// RunForTest is Main with injectable stdout/stderr for hermetic tests.
-func RunForTest(argv []string, stdout, stderr io.Writer) int {
+// Run is Main with injectable stdout/stderr for hermetic tests.
+func Run(argv []string, stdout, stderr io.Writer) int {
 	args := argv[1:]
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
 		fmt.Fprint(stdout, usage)
@@ -48,23 +40,21 @@ func RunForTest(argv []string, stdout, stderr io.Writer) int {
 	case "help":
 		fmt.Fprint(stdout, usage)
 		return 0
-	}
-
-	if _, ok := phase01Names[cmd]; ok {
+	case "new", "check", "tier", "publish":
 		return teach(stderr,
 			fmt.Sprintf("%q is not implemented in this slice", cmd),
 			"phase-01-slice-order",
 			"framework/phases/PHASE-01-implementation-brief.md",
 			"use mycelium version; wait for the slice that ships this command",
 		)
+	default:
+		return teach(stderr,
+			fmt.Sprintf("unknown command %q", cmd),
+			"command-surface",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"run mycelium --help to list available commands",
+		)
 	}
-
-	return teach(stderr,
-		fmt.Sprintf("unknown command %q", cmd),
-		"command-surface",
-		"framework/phases/PHASE-01-implementation-brief.md",
-		"run mycelium --help to list available commands",
-	)
 }
 
 func cmdVersion(args []string, stdout, stderr io.Writer) int {

@@ -21,7 +21,7 @@ func TestVersionStdoutEquality(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := cli.RunForTest(tc.argv, &stdout, &stderr)
+			code := cli.Run(tc.argv, &stdout, &stderr)
 			if code != 0 {
 				t.Fatalf("exit %d; stderr=%q", code, stderr.String())
 			}
@@ -45,7 +45,7 @@ func TestHelpExitsZero(t *testing.T) {
 	for _, argv := range cases {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := cli.RunForTest(argv, &stdout, &stderr)
+			code := cli.Run(argv, &stdout, &stderr)
 			if code != 0 {
 				t.Fatalf("exit %d; stderr=%q", code, stderr.String())
 			}
@@ -58,7 +58,7 @@ func TestHelpExitsZero(t *testing.T) {
 
 func TestUnknownCommandTeachingError(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := cli.RunForTest([]string{"mycelium", "not-a-command"}, &stdout, &stderr)
+	code := cli.Run([]string{"mycelium", "not-a-command"}, &stdout, &stderr)
 	if code != 1 {
 		t.Fatalf("exit %d want 1", code)
 	}
@@ -81,7 +81,7 @@ func TestPhase01NotImplementedTeachingError(t *testing.T) {
 	for _, cmd := range []string{"new", "check", "tier", "publish"} {
 		t.Run(cmd, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := cli.RunForTest([]string{"mycelium", cmd}, &stdout, &stderr)
+			code := cli.Run([]string{"mycelium", cmd}, &stdout, &stderr)
 			if code != 1 {
 				t.Fatalf("exit %d want 1", code)
 			}

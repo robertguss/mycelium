@@ -1,17 +1,37 @@
 package embed_test
 
 import (
+	"io/fs"
+	"strings"
 	"testing"
 
 	"github.com/robertguss/mycelium/internal/embed"
 )
 
-func TestProgramEmbedsKeep(t *testing.T) {
-	data, err := embed.Program.ReadFile("program/.keep")
+func TestProgramEmbedHasNoGoFiles(t *testing.T) {
+	err := fs.WalkDir(embed.Program, "program", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(d.Name()), ".go") {
+			t.Errorf("embed contains filtered .go file: %s", path)
+		}
+		return nil
+	})
 	if err != nil {
-		t.Fatalf("ReadFile program/.keep: %v", err)
+		t.Fatalf("walk embed: %v", err)
 	}
-	if len(data) == 0 {
-		t.Fatal("program/.keep is empty")
+}
+
+func TestProgramEmbedNotEmpty(t *testing.T) {
+	entries, err := fs.ReadDir(embed.Program, "program")
+	if err != nil {
+		t.Fatalf("ReadDir program: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("embedded program/ is empty")
 	}
 }

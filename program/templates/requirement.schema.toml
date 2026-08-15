@@ -1,0 +1,15 @@
+namespace = "REQ"
+home = "requirements"
+filename_pattern = "REQ-{NNN}-{slug}.md"
+stage_scoped = true
+digits = 3
+required_front_matter = ["id", "title", "priority", "date", "phase"]
+required_sections = [
+  "Requirement",
+  "Rationale",
+  "Acceptance Evidence",
+  "Exceptions",
+]
+
+[enums.priority]
+values = ["Must", "Should", "May"]
