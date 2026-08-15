@@ -1,6 +1,6 @@
 # Conformance Suite (Mycelium 2.0)
 
-Structure only ([DEC-005](../../framework/decisions/DEC-005-convention-over-configuration.md)).
+Structure only (DEC-005).
 Checks never grade prose or thinking quality.
 
 ## Must-implement checks (11)
@@ -20,7 +20,7 @@ Checks never grade prose or thinking quality.
 10. Undeclared extra top-level paths unless deviation
     `extra-top-level:<path>` is declared.
 11. Stage-scoped IDs outside every declared range → FAIL
-    ([DEC-013](../../framework/decisions/DEC-013-stage-range-refuse.md)).
+    (DEC-013).
 
 ## Teaching errors
 
@@ -49,15 +49,38 @@ tier: focused
 artifacts: <n>
 ```
 
-## Allowed top-level paths (focused spark baseline)
+## Allowed top-level paths (undeclared extras fail)
 
-`mycelium.toml`, `README.md`, `AGENTS.md`, `CONTEXT.md`, `log.md`, `program/`,
-`.agents/`, `.mycelium/`, `.git/`, plus homes that the active tier newly binds.
+Always allowed:
 
-Deviation key for extras: `extra-top-level:<path>`.
+```text
+README.md
+mycelium.toml
+log.md
+CONTEXT.md
+AGENTS.md
+.gitignore
+LICENSE
+CHANGELOG.md
+.agents/
+.mycelium/
+.git/
+.github/
+program/
+```
+
+Type homes are allowed when they exist: `decisions/`, `assumptions/`, `evidence/`, `questions/`, `risks/`, `spikes/`, `findings/`, `recommendations/`, `requirements/`, `phases/`, `milestones/`.
+
+Inside a type home, files must match the filename pattern or be `README.md`. Other files fail ID-to-path.
+
+Inside `program/` and `.agents/`, extra files are allowed (methodology copy / runtime adapters).
+
+**Architect default** deviation key for a human scratch file: `extra-top-level:<path>` e.g. `extra-top-level:notes.md`.
+
+Missing bound files/dirs fail. Extra valid artifacts at a low tier pass. Homes are allowed when they exist at ANY tier — do not require them to be in the active tier's binds.
 
 ## check --abort-journal
 
-When a journal remains after an interrupted operation, `mycelium check` teaches
-recovery. `mycelium check --abort-journal` discards the journal and staged files
-after confirming abort intent (operator-driven; does not invent a new ID).
+`--abort-journal`: delete staged temps listed in `.mycelium/journal.json`, delete the journal, delete a stale lock file. Do **not** delete already-renamed artifacts (no-deletion). Print the surviving paths. Exit 0 if the journal/lock are gone; exit 1 if there was nothing to abort (teaching error: no journal).
+
+No confirmation step.
