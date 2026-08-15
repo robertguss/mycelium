@@ -12,6 +12,7 @@ import (
 
 	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
+	"github.com/robertguss/mycelium/internal/handoff"
 	"github.com/robertguss/mycelium/internal/indexmd"
 	"github.com/robertguss/mycelium/internal/lifecycle"
 	"github.com/robertguss/mycelium/internal/logfmt"
@@ -133,15 +134,7 @@ func runStateTransition(root string, m manifest.Manifest, logBytes []byte, opts 
 			"state requires a target",
 			"command-flags",
 			"program/contracts/lifecycle.md",
-			"usage: mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]",
-		)
-	}
-	if target == "handed-off" {
-		return teach.Write(deps.Stderr,
-			"state=handed-off requires a PHASE-06 handoff packet",
-			"lifecycle",
-			"program/contracts/lifecycle.md",
-			"stay in clarified, or mycelium state archived; packet command is not shipped",
+			"usage: mycelium state <exploring|simmering|clarified|handed-off|archived> [--dir PATH] [--revisit VALUE]",
 		)
 	}
 	if !isAllowedTarget(target) {
@@ -149,7 +142,7 @@ func runStateTransition(root string, m manifest.Manifest, logBytes []byte, opts 
 			fmt.Sprintf("unknown state target %q", target),
 			"lifecycle",
 			"program/contracts/lifecycle.md",
-			"allowed targets: exploring, simmering, clarified, archived (handed-off is PHASE-06)",
+			"allowed targets: exploring, simmering, clarified, handed-off, archived",
 		)
 	}
 	if opts.HasRevisit && lifecycle.RevisitForbidden(target) {
@@ -187,13 +180,50 @@ func runStateTransition(root string, m manifest.Manifest, logBytes []byte, opts 
 			"no further state transitions are legal from archived",
 		)
 	}
-	if m.State == "handed-off" {
+
+	// handed-off → handed-off: refuse (no idempotent no-op this phase).
+	if m.State == "handed-off" && target == "handed-off" {
 		return teach.Write(deps.Stderr,
-			"state=handed-off requires a PHASE-06 handoff packet",
+			"illegal transition handed-off → handed-off",
 			"lifecycle",
 			"program/contracts/lifecycle.md",
-			"stay in clarified, or mycelium state archived; packet command is not shipped",
+			"handed-off is terminal except mycelium state archived",
 		)
+	}
+
+	// handed-off → non-archived: refuse with dedicated teach.
+	if m.State == "handed-off" && target != "archived" {
+		return teach.Write(deps.Stderr,
+			fmt.Sprintf("illegal transition handed-off → %s", target),
+			"lifecycle",
+			"program/contracts/lifecycle.md",
+			"handed-off is terminal except mycelium state archived",
+		)
+	}
+
+	if target == "handed-off" {
+		if !packetPasses(root) {
+			return teach.Write(deps.Stderr,
+				"state=handed-off requires a handoff packet",
+				"lifecycle",
+				"program/contracts/lifecycle.md",
+				"mycelium handoff [--dir PATH]",
+			)
+		}
+		if m.State != "clarified" {
+			next := lifecycle.LegalNext(m.State)
+			fix := "allowed next states: " + strings.Join(next, ", ")
+			if len(next) == 0 {
+				fix = "no commanded next states from " + m.State
+			}
+			return teach.Write(deps.Stderr,
+				fmt.Sprintf("illegal transition %s → %s", m.State, target),
+				"lifecycle",
+				"program/contracts/lifecycle.md",
+				fix,
+			)
+		}
+		return commitHandedOff(root, m, logBytes, opts, deps)
 	}
 
 	same := m.State == target
@@ -236,6 +266,71 @@ func runStateTransition(root string, m manifest.Manifest, logBytes []byte, opts 
 		revisitVal = opts.Revisit
 	}
 	return commitGeneric(root, m, logBytes, target, revisitVal, opts, deps)
+}
+
+// commitHandedOff flips clarified → handed-off when a passing packet already exists.
+// Does not regenerate handoff/**. Journal/log op is handoff.
+func commitHandedOff(root string, m manifest.Manifest, logBytes []byte, opts Options, deps Deps) int {
+	now := deps.Clock.Now().UTC()
+	date := clock.Date(now)
+	title := "clarified -> handed-off"
+	logLine := logfmt.Line(date, "handoff", handoff.PacketID, title)
+
+	m.State = "handed-off"
+	m.Revisit = ""
+	m.UpdatedDate = date
+	manOut, err := manifest.Encode(m)
+	if err != nil {
+		return teach.Write(deps.Stderr,
+			fmt.Sprintf("cannot encode manifest: %v", err),
+			"manifest",
+			"program/contracts/manifest.md",
+			"fix mycelium.toml and retry",
+		)
+	}
+	newLog := appendLogLine(logBytes, logLine)
+
+	idx, err := indexmd.Load(root)
+	if err != nil {
+		return teach.Write(deps.Stderr,
+			fmt.Sprintf("cannot build index.md: %v", err),
+			"index",
+			"program/contracts/index.md",
+			"restore mycelium.toml and log.md, then retry",
+		)
+	}
+	idx.State = "handed-off"
+	idx.Revisit = ""
+	idx.LogLines = append(idx.LogLines, logLine)
+
+	argv := opts.Argv
+	if len(argv) == 0 {
+		argv = []string{"state", "handed-off"}
+		if opts.Dir != "" {
+			argv = append(argv, "--dir", opts.Dir)
+		}
+	}
+
+	files := []op.Staged{
+		{RelTo: "index.md", Content: indexmd.Render(idx)},
+		{RelTo: "log.md", Content: newLog},
+		{RelTo: "mycelium.toml", Content: manOut},
+	}
+	if code := protocolCommit(root, "handoff", title, logLine, argv, files, now, deps); code != 0 {
+		return code
+	}
+	fmt.Fprintln(deps.Stdout, "mycelium state: ok")
+	fmt.Fprintln(deps.Stdout, "state: handed-off")
+	fmt.Fprintln(deps.Stdout, "packet: handoff/PACKET.md")
+	return 0
+}
+
+func packetPasses(root string) bool {
+	packetPath := filepath.Join(root, "handoff", "PACKET.md")
+	if _, err := os.Stat(packetPath); err != nil {
+		return false
+	}
+	return len(handoff.Check(os.DirFS(filepath.Join(root, "handoff")))) == 0
 }
 
 func commitWake(root string, m manifest.Manifest, logBytes []byte, opts Options, deps Deps) int {
@@ -301,7 +396,7 @@ func commitWake(root string, m manifest.Manifest, logBytes []byte, opts Options,
 		{RelTo: "log.md", Content: newLog},
 		{RelTo: "mycelium.toml", Content: manOut},
 	}
-	if code := protocolCommit(root, "wake", logLine, argv, files, now, deps); code != 0 {
+	if code := protocolCommit(root, "wake", "", logLine, argv, files, now, deps); code != 0 {
 		return code
 	}
 	fmt.Fprintf(deps.Stdout, "woke %s\n", datedRel)
@@ -361,7 +456,7 @@ func commitGeneric(root string, m manifest.Manifest, logBytes []byte, target, re
 		{RelTo: "log.md", Content: newLog},
 		{RelTo: "mycelium.toml", Content: manOut},
 	}
-	if code := protocolCommit(root, "state", logLine, argv, files, now, deps); code != 0 {
+	if code := protocolCommit(root, "state", "", logLine, argv, files, now, deps); code != 0 {
 		return code
 	}
 	fmt.Fprintf(deps.Stdout, "state: %s\n", target)
@@ -369,9 +464,10 @@ func commitGeneric(root string, m manifest.Manifest, logBytes []byte, target, re
 	return 0
 }
 
-func protocolCommit(root, opName, logLine string, argv []string, files []op.Staged, now time.Time, deps Deps) int {
+func protocolCommit(root, opName, title, logLine string, argv []string, files []op.Staged, now time.Time, deps Deps) int {
 	sess, err := op.Begin(root, op.Intent{
 		Op:      opName,
+		Title:   title,
 		LogLine: logLine,
 		Argv:    argv,
 	}, now)

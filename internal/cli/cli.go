@@ -13,6 +13,7 @@ import (
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
 	"github.com/robertguss/mycelium/internal/generate"
+	"github.com/robertguss/mycelium/internal/handoffcmd"
 	"github.com/robertguss/mycelium/internal/indexcmd"
 	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/publish"
@@ -39,6 +40,7 @@ Usage:
   mycelium wake [--dir PATH]
   mycelium status [--dir PATH] [--all] [--root PATH] [--archived] [--offline]
   mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]
+  mycelium handoff [--dir PATH]
   mycelium -h | --help
 `
 
@@ -102,6 +104,8 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return cmdStatus(args[1:], stdout, stderr, deps)
 	case "supersede":
 		return cmdSupersede(args[1:], stdout, stderr, deps)
+	case "handoff":
+		return cmdHandoff(args[1:], stdout, stderr, deps)
 	default:
 		return teach.Write(stderr,
 			fmt.Sprintf("unknown command %q", cmd),
@@ -346,13 +350,14 @@ Examples:
 func cmdState(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseStateFlags(args)
 	if err == errHelp {
-		fmt.Fprintln(stdout, `Usage: mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]
+		fmt.Fprintln(stdout, `Usage: mycelium state <exploring|simmering|clarified|handed-off|archived> [--dir PATH] [--revisit VALUE]
 
 Examples:
   mycelium state exploring
   mycelium state simmering --revisit 2026-08-08
   mycelium state simmering --revisit event:after-iphone-launch
   mycelium state clarified --dir ./my-idea
+  mycelium state handed-off
   mycelium state archived`)
 		return 0
 	}
@@ -361,7 +366,7 @@ Examples:
 			err.Error(),
 			"command-flags",
 			"program/contracts/lifecycle.md",
-			"usage: mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]",
+			"usage: mycelium state <exploring|simmering|clarified|handed-off|archived> [--dir PATH] [--revisit VALUE]",
 		)
 	}
 	cwd, err := deps.Getwd()
@@ -508,6 +513,41 @@ func cmdSupersede(args []string, stdout, stderr io.Writer, deps Deps) int {
 	})
 }
 
+func cmdHandoff(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseHandoffFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, "Usage: mycelium handoff [--dir PATH]")
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			"handoff accepts only --dir PATH",
+			"command-flags",
+			"framework/phases/PHASE-06-implementation-brief.md",
+			"mycelium handoff [--dir PATH]",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-06-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	argv := append([]string{"handoff"}, args...)
+	return handoffcmd.Run(handoffcmd.Options{
+		Dir:  opts.dir,
+		Cwd:  cwd,
+		Argv: argv,
+	}, handoffcmd.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
 func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseCheckFlags(args)
 	if err == errHelp {
@@ -648,6 +688,10 @@ type supersedeFlags struct {
 	dir   string
 }
 
+type handoffFlags struct {
+	dir string
+}
+
 func parseSupersedeFlags(args []string) (supersedeFlags, error) {
 	var out supersedeFlags
 	var positionals []string
@@ -688,6 +732,28 @@ func parseSupersedeFlags(args []string) (supersedeFlags, error) {
 		return out, fmt.Errorf("unexpected argument %q", positionals[1])
 	}
 	out.oldID = positionals[0]
+	return out, nil
+}
+
+func parseHandoffFlags(args []string) (handoffFlags, error) {
+	var out handoffFlags
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("handoff accepts only --dir PATH")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		default:
+			return out, fmt.Errorf("handoff accepts only --dir PATH")
+		}
+	}
 	return out, nil
 }
 

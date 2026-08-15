@@ -172,7 +172,10 @@ func TestPhase05Slice2SupersedeRefuseTable(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("handed-off exit %d stderr=%q", code, stderr)
 	}
-	if !strings.Contains(stderr, "PHASE-06") {
+	if !strings.Contains(stderr, "handoff packet") {
+		t.Fatalf("stderr=%q", stderr)
+	}
+	if !strings.Contains(stderr, "mycelium handoff") {
 		t.Fatalf("stderr=%q", stderr)
 	}
 	clitest.AssertNoNetwork(t, rec)

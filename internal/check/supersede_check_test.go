@@ -126,9 +126,13 @@ func TestLogLineREAcceptsSupersede(t *testing.T) {
 	if !logLineRE.MatchString(line) {
 		t.Fatalf("logLineRE rejected %q", line)
 	}
-	bad := "2026-08-15\thandoff\tDEC-001\tnope"
+	handoff := "2026-08-15\thandoff\tHO-001\tclarified -> handed-off"
+	if !logLineRE.MatchString(handoff) {
+		t.Fatalf("logLineRE rejected handoff %q", handoff)
+	}
+	bad := "2026-08-15\tcouncil\tDEC-001\tnope"
 	if logLineRE.MatchString(bad) {
-		t.Fatal("handoff must not match")
+		t.Fatal("council must not match")
 	}
 }
 

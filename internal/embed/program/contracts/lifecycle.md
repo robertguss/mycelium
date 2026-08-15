@@ -66,7 +66,9 @@ Replace PHASE-01 storage rules.
 
 ## Lift timing
 
-Slice 0 is docs only. This file states the PHASE-06 rule. The binary still refuses `state handed-off` and still FAILs stored `handed-off` until Slice 2 binds the command, the IFF, and the storage lift. Do not claim `mycelium handoff` is shipped.
+Slice 2 binds `mycelium handoff`, `state handed-off` IFF, item 8 / 24, and
+the storage lift. Stored `handed-off` is LEGAL iff packet structure passes.
+Teaching errors name `mycelium handoff`.
 
 ## Protocol
 
@@ -87,7 +89,7 @@ Never `git add`. Never `git commit`.
 
 `mycelium index` uses the same protocol with journal `op=index`. `index` does
 **not** append a log line. Check log-ops stay
-`scaffold|new|tier|publish|check|state|wake|supersede`.
+`scaffold|new|tier|publish|check|state|wake|supersede|handoff`.
 
 ## Illegal edge
 

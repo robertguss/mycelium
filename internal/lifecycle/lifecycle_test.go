@@ -11,8 +11,8 @@ func TestLegalNext(t *testing.T) {
 		"spark":      {"exploring", "archived"},
 		"exploring":  {"simmering", "clarified", "archived"},
 		"simmering":  {"exploring", "archived"},
-		"clarified":  {"archived"},
-		"handed-off": nil,
+		"clarified":  {"handed-off", "archived"},
+		"handed-off": {"archived"},
 		"archived":   nil,
 		"nope":       nil,
 	}
@@ -48,8 +48,8 @@ func TestLegalEdges(t *testing.T) {
 		{"simmering", "archived", true},
 		{"simmering", "clarified", false},
 		{"clarified", "archived", true},
-		{"clarified", "handed-off", false},
-		{"handed-off", "archived", false},
+		{"clarified", "handed-off", true},
+		{"handed-off", "archived", true},
 		{"handed-off", "exploring", false},
 		{"archived", "exploring", false},
 		{"archived", "archived", false},
@@ -62,7 +62,7 @@ func TestLegalEdges(t *testing.T) {
 }
 
 func TestAllowedTargets(t *testing.T) {
-	want := []string{"exploring", "simmering", "clarified", "archived"}
+	want := []string{"exploring", "simmering", "clarified", "handed-off", "archived"}
 	got := lifecycle.AllowedTargets()
 	if len(got) != len(want) {
 		t.Fatalf("got %v want %v", got, want)
@@ -72,7 +72,7 @@ func TestAllowedTargets(t *testing.T) {
 			t.Fatalf("[%d]=%q want %q", i, got[i], want[i])
 		}
 	}
-	for _, bad := range []string{"spark", "handed-off"} {
+	for _, bad := range []string{"spark"} {
 		for _, tgt := range got {
 			if tgt == bad {
 				t.Fatalf("AllowedTargets must not include %q", bad)
@@ -100,9 +100,9 @@ func TestIsWake(t *testing.T) {
 
 func TestRevisitFlags(t *testing.T) {
 	cases := []struct {
-		to          string
-		required    bool
-		forbidden   bool
+		to        string
+		required  bool
+		forbidden bool
 	}{
 		{"simmering", true, false},
 		{"exploring", false, true},

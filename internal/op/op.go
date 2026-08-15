@@ -423,21 +423,29 @@ func validateContained(root, rel string) error {
 // allowReplace reports whether this session may overwrite an existing destination.
 // Regenerable paths (log.md, mycelium.toml, index.md, briefs/*.md) always may.
 // For op == "supersede" only, Commit may also replace the journal's artifact RelTos.
+// For op == "handoff" only, Commit may replace paths under handoff/.
 // Do not open general overwrite for "new".
 func (s *Session) allowReplace(toRel string) bool {
 	if allowReplacePath(toRel) {
 		return true
 	}
-	if s == nil || s.journal == nil || s.journal.Op != "supersede" {
+	if s == nil || s.journal == nil {
 		return false
 	}
 	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(toRel)))
-	for _, r := range s.journal.Renames {
-		if filepath.ToSlash(filepath.Clean(filepath.FromSlash(r.To))) == clean {
-			return true
+	switch s.journal.Op {
+	case "handoff":
+		return clean == "handoff" || strings.HasPrefix(clean, "handoff/")
+	case "supersede":
+		for _, r := range s.journal.Renames {
+			if filepath.ToSlash(filepath.Clean(filepath.FromSlash(r.To))) == clean {
+				return true
+			}
 		}
+		return false
+	default:
+		return false
 	}
-	return false
 }
 
 // allowReplacePath is the regenerable-path allowlist shared by all ops.
