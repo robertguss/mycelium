@@ -135,6 +135,27 @@ func TestSlugMustMatchIdeaName(t *testing.T) {
 	}
 }
 
+func TestBadDate(t *testing.T) {
+	tests := []struct {
+		name string
+		old  string
+		new  string
+	}{
+		{name: "created not iso", old: `created_date = "2026-08-14"`, new: `created_date = "08/14/2026"`},
+		{name: "updated garbage", old: `updated_date = "2026-08-14"`, new: `updated_date = "yesterday"`},
+		{name: "created missing dashes", old: `created_date = "2026-08-14"`, new: `created_date = "20260814"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := strings.Replace(validTOML, tt.old, tt.new, 1)
+			_, err := manifest.Parse([]byte(in))
+			if !errors.Is(err, manifest.ErrInvalid) {
+				t.Fatalf("err = %v, want ErrInvalid", err)
+			}
+		})
+	}
+}
+
 func TestRangeMembership(t *testing.T) {
 	in := validTOML + `
 [identifiers]

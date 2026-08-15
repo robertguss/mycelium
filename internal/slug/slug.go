@@ -1,4 +1,5 @@
 // Package slug turns idea names into kebab-case path segments.
+// PHASE-01 fold rules: DEC-014 (not Unicode NFKD).
 package slug
 
 import (
@@ -15,8 +16,8 @@ var ErrEmpty = errors.New("slug: empty")
 // ErrReserved is returned for "." and "..".
 var ErrReserved = errors.New("slug: reserved")
 
-// latinFold maps common precomposed Latin letters to ASCII.
-// Dependency floor allows only go-toml; no x/text NFKD.
+// latinFold is the fixed PHASE-01 compatibility map (DEC-014).
+// Do not grow this map this phase; unlisted runes are dropped.
 var latinFold = map[rune]string{
 	'À': "a", 'Á': "a", 'Â': "a", 'Ã': "a", 'Ä': "a", 'Å': "a",
 	'à': "a", 'á': "a", 'â': "a", 'ã': "a", 'ä': "a", 'å': "a",
@@ -37,10 +38,10 @@ var latinFold = map[rune]string{
 	'Œ': "oe", 'œ': "oe",
 }
 
-// Slugify converts name to a kebab-case slug.
-// Fold accents, keep ASCII [a-zA-Z0-9], map space/_ to -,
-// drop other runes (and combining marks), collapse --, trim -,
-// lower, max 80. Empty / "." / ".." refuse.
+// Slugify converts name to a kebab-case slug per DEC-014.
+// latinFold + ASCII [a-zA-Z0-9], map space/_ to -, drop other runes
+// (and combining marks), collapse --, trim -, lower, max 80.
+// Empty / "." / ".." refuse. Unlisted letters are dropped, not folded.
 func Slugify(name string) (string, error) {
 	var b strings.Builder
 	b.Grow(len(name))

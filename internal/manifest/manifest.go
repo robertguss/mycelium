@@ -35,6 +35,7 @@ var identifierKeys = map[string]string{
 }
 
 var rangeRE = regexp.MustCompile(`^([A-Z]+)-([0-9]+)\.\.([A-Z]+)-([0-9]+)$`)
+var dateRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 var requiredTop = []string{
 	"schema_version", "idea_name", "slug", "state", "tier",
@@ -151,9 +152,15 @@ func Parse(data []byte) (Manifest, error) {
 	if err != nil || m.CreatedDate == "" {
 		return Manifest{}, fmt.Errorf("%w: created_date", ErrRequired)
 	}
+	if !dateRE.MatchString(m.CreatedDate) {
+		return Manifest{}, fmt.Errorf("%w: created_date must be YYYY-MM-DD", ErrInvalid)
+	}
 	m.UpdatedDate, err = asString(raw["updated_date"])
 	if err != nil || m.UpdatedDate == "" {
 		return Manifest{}, fmt.Errorf("%w: updated_date", ErrRequired)
+	}
+	if !dateRE.MatchString(m.UpdatedDate) {
+		return Manifest{}, fmt.Errorf("%w: updated_date must be YYYY-MM-DD", ErrInvalid)
 	}
 	m.Revisit, err = asString(raw["revisit"])
 	if err != nil {

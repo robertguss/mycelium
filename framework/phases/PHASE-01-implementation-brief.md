@@ -748,7 +748,7 @@ Idempotent `mycelium publish`:
 
 ### Slugify
 
-**Architect default:** NFKD, strip combining marks, keep ASCII `[a-zA-Z0-9]`, map space/`_` to `-`, drop other runes, collapse `--`, trim `-`, lowercase. Max 80 characters. Empty → refuse. Refuse `.` and `..`.
+**Architect default (DEC-014):** PHASE-01 slugify is the documented latin/compatibility fold in `internal/slug` (`latinFold` + ASCII `[a-zA-Z0-9]` + map space/`_` to `-`, drop other runes including unlisted letters, collapse `--`, trim `-`, lowercase). Max 80 characters. Empty → refuse. Refuse `.` and `..`. Full Unicode NFKD is deferred; do not grow `latinFold` this phase. See `framework/decisions/DEC-014-phase-01-slugify-latin-fold.md`.
 
 ### Default directory
 

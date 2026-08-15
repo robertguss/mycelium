@@ -28,6 +28,10 @@ func TestSlugify(t *testing.T) {
 		{name: "dotdot", in: "..", wantErr: slug.ErrEmpty},
 		{name: "overflow truncated", in: strings.Repeat("a", 100), want: strings.Repeat("a", 80)},
 		{name: "overflow mid-word", in: strings.Repeat("ab", 50), want: strings.Repeat("ab", 40)},
+		// DEC-014 locked probe outcomes (specified behavior, not bugs):
+		{name: "fi ligature dropped", in: "ﬁle", want: "le"},
+		{name: "fullwidth latin empty", in: "Ｔｅｓｔ", wantErr: slug.ErrEmpty},
+		{name: "Da Nang unlisted", in: "Đà Nẵng", want: "a-nng"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

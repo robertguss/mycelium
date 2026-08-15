@@ -96,6 +96,7 @@ func Parse(s string) (ID, error) {
 }
 
 // FormatID zero-pads n to the namespace digit width (no slug).
+// Refuses n < 0 or n that does not fit Digits (n >= 10^Digits).
 func FormatID(ns string, n int) (string, error) {
 	t, err := LookupNS(ns)
 	if err != nil {
@@ -103,6 +104,13 @@ func FormatID(ns string, n int) (string, error) {
 	}
 	if n < 0 {
 		return "", fmt.Errorf("%w: negative", ErrFormat)
+	}
+	limit := 1
+	for i := 0; i < t.Digits; i++ {
+		limit *= 10
+	}
+	if n >= limit {
+		return "", fmt.Errorf("%w: %s n=%d exceeds %d digits", ErrFormat, ns, n, t.Digits)
 	}
 	return fmt.Sprintf("%s-%0*d", ns, t.Digits, n), nil
 }

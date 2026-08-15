@@ -137,6 +137,40 @@ func TestFormatZeroPad(t *testing.T) {
 	}
 }
 
+func TestFormatDigitWidth(t *testing.T) {
+	_, err := idpath.Format("DEC", 1000, "x")
+	if !errors.Is(err, idpath.ErrFormat) {
+		t.Fatalf("Format(DEC,1000) err = %v, want ErrFormat", err)
+	}
+	_, err = idpath.FormatID("DEC", 1000)
+	if !errors.Is(err, idpath.ErrFormat) {
+		t.Fatalf("FormatID(DEC,1000) err = %v, want ErrFormat", err)
+	}
+	_, err = idpath.Format("PHASE", 100, "x")
+	if !errors.Is(err, idpath.ErrFormat) {
+		t.Fatalf("Format(PHASE,100) err = %v, want ErrFormat", err)
+	}
+
+	path, err := idpath.Format("DEC", 999, "max")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "decisions/DEC-999-max.md" {
+		t.Fatalf("got %q", path)
+	}
+	id, slug, err := idpath.ParsePath(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.NS != "DEC" || id.N != 999 || slug != "max" {
+		t.Fatalf("ParsePath = %+v %q", id, slug)
+	}
+	path2, err := idpath.PathFor(id, slug)
+	if err != nil || path2 != path {
+		t.Fatalf("PathFor inverse: %q %v", path2, err)
+	}
+}
+
 func TestQuestionNotStageScoped(t *testing.T) {
 	oq, err := idpath.LookupNS("OQ")
 	if err != nil {
