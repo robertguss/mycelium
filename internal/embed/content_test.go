@@ -90,7 +90,7 @@ var registered = map[string]typeExpect{
 		namespace: "OQ", home: "questions", pattern: "OQ-{NNN}-{slug}.md",
 		digits: 3, stageScoped: false,
 		fm: []string{"id", "title", "agreement", "date"},
-		sections: []string{"Question", "Context", "Positions", "Crux", "Disposition"},
+		sections: []string{"Question", "Context", "Positions", "Disposition"},
 	},
 	"risk": {
 		namespace: "RSK", home: "risks", pattern: "RSK-{NNN}-{slug}.md",
