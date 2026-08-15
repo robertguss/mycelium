@@ -140,35 +140,33 @@ func TestRefuseOverwrite(t *testing.T) {
 	assertTeachingShape(t, errText)
 }
 
-func TestRefuseOverwriteOnResumeWithLeftoverJournal(t *testing.T) {
+// H1: leftover journal To=README.md + matching new <type> resume must not clobber README.
+func TestH1ResumeRefusesClobberREADME(t *testing.T) {
 	cwd := t.TempDir()
-	inst := scaffoldOffline(t, cwd, "Resume Overwrite")
+	inst := scaffoldOffline(t, cwd, "H1 Readme")
 	deps := fixedDeps(t, cwd)
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
-	rel := "decisions/DEC-001-title.md"
-	dest := filepath.Join(inst, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	userBytes := []byte("user-owned content\n")
-	if err := os.WriteFile(dest, userBytes, 0o644); err != nil {
+
+	readme := filepath.Join(inst, "README.md")
+	keep := []byte("KEEP-README-BYTES\n")
+	if err := os.WriteFile(readme, keep, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	sess, err := op.Begin(inst, op.Intent{
 		Op:         "new",
 		Type:       "decision",
-		Title:      "Title",
+		Title:      "Any Title",
 		OriginalID: "DEC-001",
-		LogLine:    "2026-08-15\tnew\tDEC-001\tTitle",
-		Argv:       []string{"new", "decision", "Title", "--dir", inst},
-		OpID:       "resume-ow",
+		LogLine:    "2026-08-15\tnew\tDEC-001\tAny Title",
+		Argv:       []string{"new", "decision", "Any Title", "--dir", inst},
+		OpID:       "h1-readme",
 	}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := sess.Stage([]op.Staged{
-		{RelTo: rel, Content: []byte("staged-clobber\n")},
+		{RelTo: "README.md", Content: []byte("PWNED-README\n")},
 		{RelTo: "log.md", Content: []byte("log\n")},
 		{RelTo: "mycelium.toml", Content: []byte("m\n")},
 	}); err != nil {
@@ -177,7 +175,113 @@ func TestRefuseOverwriteOnResumeWithLeftoverJournal(t *testing.T) {
 	if err := sess.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := journal.Load(inst); err != nil {
+
+	code, _, errText := runNew(t, deps, "new", "decision", "Any Title", "--dir", inst)
+	if code != 1 {
+		t.Fatalf("exit %d want 1 stderr=%q", code, errText)
+	}
+	got, err := os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(keep) {
+		t.Fatalf("README clobbered: got %q", got)
+	}
+	if strings.Contains(string(got), "PWNED-README") {
+		t.Fatal("README contains PWNED-README")
+	}
+	_ = errText
+}
+
+// H1: leftover journal To=decisions/DEC-001-keep-this.md + resume must leave file unchanged.
+func TestH1ResumeRefusesClobberExistingDEC(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "H1 Dec")
+	deps := fixedDeps(t, cwd)
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	rel := "decisions/DEC-001-keep-this.md"
+	dest := filepath.Join(inst, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	keep := []byte("KEEP-THIS-DEC\n")
+	if err := os.WriteFile(dest, keep, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sess, err := op.Begin(inst, op.Intent{
+		Op:         "new",
+		Type:       "decision",
+		Title:      "Keep This",
+		OriginalID: "DEC-001",
+		LogLine:    "2026-08-15\tnew\tDEC-001\tKeep This",
+		Argv:       []string{"new", "decision", "Keep This", "--dir", inst},
+		OpID:       "h1-dec",
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Stage([]op.Staged{
+		{RelTo: rel, Content: []byte("PWNED-DEC\n")},
+		{RelTo: "log.md", Content: []byte("log\n")},
+		{RelTo: "mycelium.toml", Content: []byte("m\n")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _, errText := runNew(t, deps, "new", "decision", "Keep This", "--dir", inst)
+	if code != 1 {
+		t.Fatalf("exit %d want 1 stderr=%q", code, errText)
+	}
+	if !strings.Contains(errText, "refuse overwrite") && !strings.Contains(errText, "commit failed") {
+		t.Fatalf("stderr=%q", errText)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(keep) {
+		t.Fatalf("DEC clobbered: got %q", got)
+	}
+}
+
+// H2: leftover original_id + existing dest + empty renames → refuse before Stage.
+func TestH2ResumeEmptyRenamesRefusesExistingDest(t *testing.T) {
+	cwd := t.TempDir()
+	inst := scaffoldOffline(t, cwd, "H2 Empty")
+	deps := fixedDeps(t, cwd)
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	rel := "decisions/DEC-001-title.md"
+	dest := filepath.Join(inst, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	userBytes := []byte("USER-WROTE-THIS-DEC\n")
+	if err := os.WriteFile(dest, userBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Journal with original_id but empty renames (pre-Stage crash shape).
+	j := &journal.Journal{
+		SchemaVersion: 1,
+		Op:            "new",
+		Title:         "Title",
+		OriginalID:    "DEC-001",
+		StartedAt:     now.UTC().Format(time.RFC3339),
+		StagedDir:     ".mycelium/stage/h2-empty",
+		LogLine:       "2026-08-15\tnew\tDEC-001\tTitle",
+		Argv:          []string{"new", "decision", "Title", "--dir", inst},
+	}
+	j.SetType("decision")
+	if err := os.MkdirAll(filepath.Join(inst, ".mycelium", "stage", "h2-empty"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := journal.Save(inst, j); err != nil {
 		t.Fatal(err)
 	}
 
@@ -211,6 +315,20 @@ func TestRefuseTitleNewlineAndTab(t *testing.T) {
 			t.Fatalf("title %q stderr=%q", title, errText)
 		}
 		assertTeachingShape(t, errText)
+	}
+	// Ensure no log injection line was appended.
+	b, err := os.ReadFile(filepath.Join(inst, "log.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "\tnew\t") && (strings.Contains(string(b), "break") || strings.Contains(string(b), "tab")) {
+		// Only scaffold line should exist; refuse before logfmt.Line / Stage.
+		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "\tnew\t") {
+				t.Fatalf("log got new line after title refuse: %q", line)
+			}
+		}
 	}
 }
 

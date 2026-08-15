@@ -356,10 +356,10 @@ func TestCommitRefusesClobberREADME(t *testing.T) {
 		t.Fatal(err)
 	}
 	readme := filepath.Join(root, "README.md")
-	if err := os.WriteFile(readme, []byte("keep-me\n"), 0o644); err != nil {
+	if err := os.WriteFile(readme, []byte("KEEP-README-BYTES\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Stage([]op.Staged{{RelTo: "README.md", Content: []byte("clobber\n")}}); err != nil {
+	if err := s.Stage([]op.Staged{{RelTo: "README.md", Content: []byte("PWNED-README\n")}}); err != nil {
 		t.Fatal(err)
 	}
 	err = s.Commit()
@@ -370,7 +370,7 @@ func TestCommitRefusesClobberREADME(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(b) != "keep-me\n" {
+	if string(b) != "KEEP-README-BYTES\n" {
 		t.Fatalf("README.md clobbered: %q", b)
 	}
 	_ = s.Close()
@@ -388,7 +388,7 @@ func TestCommitRefusesClobberREADME(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(b) != "keep-me\n" {
+	if string(b) != "KEEP-README-BYTES\n" {
 		t.Fatalf("README.md clobbered on resume: %q", b)
 	}
 	_ = s2.Close()
@@ -400,14 +400,14 @@ func TestCommitRefusesClobberExistingDEC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dest := filepath.Join(root, "decisions", "DEC-001-x.md")
+	dest := filepath.Join(root, "decisions", "DEC-001-keep-this.md")
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(dest, []byte("user-dec\n"), 0o644); err != nil {
+	if err := os.WriteFile(dest, []byte("KEEP-THIS-DEC\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001-x.md", Content: []byte("clobber\n")}}); err != nil {
+	if err := s.Stage([]op.Staged{{RelTo: "decisions/DEC-001-keep-this.md", Content: []byte("PWNED-DEC\n")}}); err != nil {
 		t.Fatal(err)
 	}
 	err = s.Commit()
@@ -418,7 +418,7 @@ func TestCommitRefusesClobberExistingDEC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(b) != "user-dec\n" {
+	if string(b) != "KEEP-THIS-DEC\n" {
 		t.Fatalf("DEC clobbered: %q", b)
 	}
 	_ = s.Close()
