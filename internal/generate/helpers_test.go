@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/schema"
 )
@@ -131,6 +132,17 @@ func TestLogAndIDHelpers(t *testing.T) {
 	if err != nil || next != 4 {
 		t.Fatalf("next=%d err=%v", next, err)
 	}
+
+	dest := filepath.Join(root, "decisions", "DEC-004-done.md")
+	if err := os.WriteFile(dest, []byte("done"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := refuseOverwriteUnlessDone(root, "decisions/DEC-004-done.md", []journal.Rename{{
+		To:   "decisions/DEC-004-done.md",
+		Done: true,
+	}}); err != nil {
+		t.Fatalf("done rename err=%v", err)
+	}
 }
 
 func TestRunEarlyTeachingErrors(t *testing.T) {
@@ -153,6 +165,11 @@ func TestRunEarlyTeachingErrors(t *testing.T) {
 	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: t.TempDir()}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "not a mycelium instance") {
 		t.Fatalf("root exit=%d stderr=%q", code, stderr.String())
 	}
+	t.Chdir(t.TempDir())
+	stderr.Reset()
+	if code := Run(Options{TypeKey: "decision", Title: "Valid"}, Deps{Stderr: &stderr}); code != 1 {
+		t.Fatalf("default cwd exit=%d stderr=%q", code, stderr.String())
+	}
 	noRoot := t.TempDir()
 	stderr.Reset()
 	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: noRoot, Dir: "relative"}, Deps{Stderr: &stderr}); code != 1 {
@@ -172,6 +189,23 @@ func TestRunEarlyTeachingErrors(t *testing.T) {
 		t.Fatalf("schemas exit=%d stderr=%q", code, stderr.String())
 	}
 	writeGeneratorType(t, root)
+	templatePath := filepath.Join(root, "program", "templates", "decision.md")
+	if err := os.Remove(templatePath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(templatePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stderr.Reset()
+	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: root}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "cannot read template") {
+		t.Fatalf("template exit=%d stderr=%q", code, stderr.String())
+	}
+	if err := os.Remove(templatePath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(templatePath, []byte("{{ID}}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	stderr.Reset()
 	if code := Run(Options{TypeKey: "missing", Title: "Valid", Cwd: root}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "unknown type") {
 		t.Fatalf("unknown exit=%d stderr=%q", code, stderr.String())
@@ -209,6 +243,16 @@ func TestRunEarlyTeachingErrors(t *testing.T) {
 	stderr.Reset()
 	if code := Run(Options{TypeKey: "finding", Title: "Valid", Cwd: root}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "no [identifiers] range") {
 		t.Fatalf("range exit=%d stderr=%q", code, stderr.String())
+	}
+
+	unreadableManifest := t.TempDir()
+	if err := os.Mkdir(filepath.Join(unreadableManifest, "mycelium.toml"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratorType(t, unreadableManifest)
+	stderr.Reset()
+	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: unreadableManifest}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "mycelium.toml missing") {
+		t.Fatalf("manifest read exit=%d stderr=%q", code, stderr.String())
 	}
 }
 
