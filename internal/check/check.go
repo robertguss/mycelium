@@ -149,6 +149,7 @@ func Run(root string) Result {
 	checkQuestionSparring(root, index, add)
 	checkGlossary(root, add)
 	checkDissent(root, index, add)
+	checkLadder(root, index, packResult.Packs, add)
 	checkStageScoped(m, index, schemaByHome, add)
 	logBytes := checkLog(root, add)
 	checkWakeBrief(root, logBytes, add)
