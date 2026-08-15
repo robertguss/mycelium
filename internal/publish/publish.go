@@ -14,6 +14,7 @@ import (
 	"github.com/robertguss/mycelium/internal/check"
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
+	"github.com/robertguss/mycelium/internal/indexmd"
 	"github.com/robertguss/mycelium/internal/journal"
 	"github.com/robertguss/mycelium/internal/logfmt"
 	"github.com/robertguss/mycelium/internal/manifest"
@@ -355,7 +356,19 @@ func Run(opts Options, deps Deps) Outcome {
 		}
 		finalLine := logfmt.Line(date, "publish", "-", "github.com/"+ownerRepo)
 		sess.Journal().LogLine = finalLine
+		idx, idxErr := indexmd.Load(root)
+		if idxErr != nil {
+			cleanupCreated(ctx, deps, root, createdName, ownerRepo)
+			rollbackOrClose(sess)
+			return fail(deps, fmt.Sprintf("cannot build index.md: %v", idxErr),
+				"index",
+				"program/contracts/index.md",
+				"restore mycelium.toml and log.md, then retry")
+		}
+		idx.GithubRepo = ownerRepo
+		idx.LogLines = append(idx.LogLines, finalLine)
 		files := []op.Staged{
+			{RelTo: "index.md", Content: indexmd.Render(idx)},
 			{RelTo: "log.md", Content: appendLogLine(logBytes, finalLine)},
 			{RelTo: "mycelium.toml", Content: manOut},
 		}

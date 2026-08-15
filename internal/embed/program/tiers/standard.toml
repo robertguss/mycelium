@@ -1,6 +1,6 @@
 name = "standard"
 emits = ["decisions/", "assumptions/", "evidence/", "questions/", "risks/"]
 binds = [
-  "manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/",
+  "manifest", "log.md", "CONTEXT.md", "AGENTS.md", "program/", "index.md",
   "decisions/", "assumptions/", "evidence/", "questions/", "risks/",
 ]

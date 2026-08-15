@@ -3,24 +3,45 @@
 Structure only (DEC-005).
 Checks never grade prose or thinking quality.
 
-## Must-implement checks (11)
+## Must-implement checks (14)
 
 1. Manifest present (`mycelium.toml`) and parses; required fields valid per
    `program/contracts/manifest.md`.
-2. Lifecycle state legality per `program/contracts/lifecycle.md` (PHASE-01
-   storage rules).
+2. Lifecycle state legality per `program/contracts/lifecycle.md` **PHASE-02
+   storage rules** (`clarified` legal; `handed-off` still FAIL; `simmering`
+   requires revisit grammar).
 3. Tier legality and tier-aware artifact binds.
 4. ID uniqueness within each namespace home.
 5. ID-to-path integrity both directions (`program/contracts/naming.md`).
-6. Link resolution for ID references.
+6. Link resolution for ID references (also scans `index.md` +
+   `briefs/*.md`).
 7. Required front matter and sections per sidecar schema.
-8. Log line prefixes parseable.
+8. Log line prefixes parseable. Ops:
+   `scaffold|new|tier|publish|check|state|wake`. Regex:
+   `^\d{4}-\d{2}-\d{2}\t(scaffold|new|tier|publish|check|state|wake)\t(\S+)\t`
 9. Interrupted operation: leftover journal or stale lock → teaching recovery
    (complete or `--abort-journal`).
 10. Undeclared extra top-level paths unless deviation
     `extra-top-level:<path>` is declared.
 11. Stage-scoped IDs outside every declared range → FAIL
     (DEC-013).
+12. `index.md` present + required H2s (`State`, `Artifacts`, `Log tail`,
+    `Wake`) — all tiers.
+13. `briefs/` is an allowed top-level path (not an ID-to-path home).
+14. If the log contains a `wake` op, `briefs/LATEST.md` must exist and pass
+    the five wake H2s (`program/contracts/wake.md`).
+
+## Lift timing
+
+This contract states the PHASE-02 rules now. Implementation lands later:
+
+- Slice 1: parsers only (no check-rule change yet).
+- Slice 2: `index.md` bind may land; `index.md` + `briefs/` allowed top-level.
+- Slice 3: clarified fail lift + simmering revisit-grammar check + wake-brief
+  check + log-ops extension.
+
+Do not require a wake brief on instances that never simmered. Do not grade
+brief prose. Do not require N artifacts.
 
 ## Teaching errors
 
@@ -62,6 +83,8 @@ AGENTS.md
 .gitignore
 LICENSE
 CHANGELOG.md
+index.md
+briefs/
 .agents/
 .mycelium/
 .git/
@@ -74,6 +97,9 @@ Type homes are allowed when they exist: `decisions/`, `assumptions/`, `evidence/
 Inside a type home, files must match the filename pattern or be `README.md`. Other files fail ID-to-path.
 
 Inside `program/` and `.agents/`, extra files are allowed (methodology copy / runtime adapters).
+
+Inside `briefs/`, extra files do not fail ID-to-path (`briefs/` is not an
+ID-to-path home).
 
 **Architect default** deviation key for a human scratch file: `extra-top-level:<path>` e.g. `extra-top-level:notes.md`.
 
