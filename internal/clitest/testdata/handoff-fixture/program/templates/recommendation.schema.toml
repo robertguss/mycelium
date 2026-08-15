@@ -1,0 +1,21 @@
+namespace = "REC"
+home = "recommendations"
+filename_pattern = "REC-{NNN}-{slug}.md"
+stage_scoped = true
+digits = 3
+required_front_matter = ["id", "title", "classification", "confidence", "date"]
+required_sections = [
+  "Recommendation",
+  "Requirements and Constraints",
+  "Rationale",
+  "Evidence",
+  "Tradeoffs",
+  "Alternatives Considered",
+  "Revisit Triggers",
+]
+
+[enums.classification]
+values = ["Default", "Required", "Optional", "Exception", "Experimental", "Watchlist", "Rejected"]
+
+[enums.confidence]
+values = ["High", "Medium", "Low"]

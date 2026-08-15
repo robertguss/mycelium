@@ -1,0 +1,21 @@
+namespace = "FND"
+home = "findings"
+filename_pattern = "FND-{NNN}-{slug}.md"
+stage_scoped = true
+digits = 3
+required_front_matter = ["id", "title", "severity", "confidence", "date"]
+required_sections = [
+  "Problem",
+  "Evidence",
+  "Failure Scenario",
+  "Impact",
+  "Root Cause",
+  "Required Correction",
+  "Residual Risk",
+]
+
+[enums.severity]
+values = ["Critical", "High", "Medium", "Low"]
+
+[enums.confidence]
+values = ["High", "Medium", "Low"]
