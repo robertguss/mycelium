@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/robertguss/mycelium/internal/schema"
@@ -75,6 +76,66 @@ required_sections = ["Context"]
 	}
 }
 
+func TestParseRejectsInvalidSchemas(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want error
+	}{
+		{name: "invalid toml", body: `namespace = [`, want: schema.ErrInvalid},
+		{name: "missing home", body: `namespace = "DEC"`, want: schema.ErrRequired},
+		{name: "missing filename pattern", body: `namespace = "DEC"
+home = "decisions"`, want: schema.ErrRequired},
+		{name: "missing stage scoped", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"`, want: schema.ErrRequired},
+		{name: "invalid stage scoped", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"
+stage_scoped = "false"`, want: schema.ErrInvalid},
+		{name: "missing digits", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"
+stage_scoped = false`, want: schema.ErrRequired},
+		{name: "zero digits", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"
+stage_scoped = false
+digits = 0`, want: schema.ErrInvalid},
+		{name: "missing front matter", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"
+stage_scoped = false
+digits = 3`, want: schema.ErrRequired},
+		{name: "invalid front matter item", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id", 1]
+required_sections = ["Body"]`, want: schema.ErrRequired},
+		{name: "missing sections", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id"]`, want: schema.ErrRequired},
+		{name: "invalid enums table", body: decisionSchema + `
+enums = "bad"`, want: schema.ErrInvalid},
+		{name: "invalid enum entry", body: decisionSchema + `
+[enums.owner]
+value = "bad"`, want: schema.ErrRequired},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := schema.Parse([]byte(tt.body))
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("err=%v want %v", err, tt.want)
+			}
+		})
+	}
+}
+
 func TestLoadFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "decision.schema.toml")
@@ -87,6 +148,9 @@ func TestLoadFile(t *testing.T) {
 	}
 	if s.Namespace != "DEC" {
 		t.Fatalf("got %+v", s)
+	}
+	if _, err := schema.Load(filepath.Join(dir, "missing.schema.toml")); !os.IsNotExist(err) {
+		t.Fatalf("missing load err=%v", err)
 	}
 }
 
@@ -172,6 +236,57 @@ required_sections = ["Prompt"]
 	}
 	if !hasEntry(entries, "decision") || hasEntry(entries, "commissioning") {
 		t.Fatalf("entries without pack=%v", entries)
+	}
+}
+
+func TestDiscoverErrorsAndFirstRegistrationWins(t *testing.T) {
+	if _, err := schema.Discover(t.TempDir()); err == nil {
+		t.Fatal("missing core templates must fail")
+	}
+
+	root := t.TempDir()
+	coreDir := filepath.Join(root, "program", "templates")
+	if err := os.MkdirAll(coreDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(coreDir, "decision.schema.toml"), []byte(decisionSchema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	packsPath := filepath.Join(root, "program", "packs")
+	if err := os.WriteFile(packsPath, []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := schema.Discover(root); err == nil {
+		t.Fatal("unreadable packs directory must fail")
+	}
+	if err := os.Remove(packsPath); err != nil {
+		t.Fatal(err)
+	}
+
+	packDir := filepath.Join(packsPath, "fixture", "templates")
+	if err := os.MkdirAll(packDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	duplicate := strings.Replace(decisionSchema, `namespace = "DEC"`, `namespace = "ZZZ"`, 1)
+	if err := os.WriteFile(filepath.Join(packDir, "decision.schema.toml"), []byte(duplicate), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packsPath, "README.md"), []byte("ignored"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := schema.Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Schema.Namespace != "DEC" {
+		t.Fatalf("first registration not retained: %+v", entries)
+	}
+
+	if err := os.WriteFile(filepath.Join(packDir, "broken.schema.toml"), []byte("not toml ="), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := schema.Discover(root); err == nil {
+		t.Fatal("invalid pack schema must fail")
 	}
 }
 
