@@ -382,8 +382,7 @@ func Run(opts Options, deps Deps) int {
 	return 0
 }
 
-// ReplaceTokens substitutes the four generator tokens via plain strings.Replace.
-// Leftover {{FOO}} stays. Only {{ID}} {{TITLE}} {{SLUG}} {{DATE}}.
+// ReplaceTokens substitutes {{ID}} {{TITLE}} {{SLUG}} {{DATE}}; other {{…}} stay.
 func ReplaceTokens(tpl, id, title, slugStr, date string) string {
 	out := tpl
 	out = strings.ReplaceAll(out, "{{ID}}", id)
