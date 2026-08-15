@@ -22,6 +22,7 @@ import (
 	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/revisit"
 	"github.com/robertguss/mycelium/internal/schema"
+	"github.com/robertguss/mycelium/internal/sparring"
 	"github.com/robertguss/mycelium/internal/teach"
 	"github.com/robertguss/mycelium/internal/wakebrief"
 )
@@ -129,6 +130,7 @@ func Run(root string) Result {
 
 	index := buildArtifactIndex(root, schemas, &r, add)
 	checkFrontMatterAndSections(root, index, schemaByHome, add)
+	checkQuestionSparring(root, index, add)
 	checkStageScoped(m, index, schemaByHome, add)
 	logBytes := checkLog(root, add)
 	checkWakeBrief(root, logBytes, add)
@@ -446,6 +448,9 @@ func checkFrontMatterAndSections(root string, arts []artifactFile, byHome map[st
 				continue
 			}
 			if !contains(vals, v) {
+				if a.Home == "questions" && field == "agreement" {
+					continue
+				}
 				add(
 					fmt.Sprintf("%s field %s=%q not in enum", a.Rel, field, v),
 					"front-matter-enum",
@@ -476,6 +481,65 @@ func checkFrontMatterAndSections(root string, arts []artifactFile, byHome map[st
 			}
 		}
 	}
+}
+
+func checkQuestionSparring(root string, arts []artifactFile, add func(string, string, string, string)) {
+	for _, a := range arts {
+		if a.Home != "questions" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(a.Rel)))
+		if err != nil {
+			continue
+		}
+		doc, err := metadata.Parse(b)
+		if err != nil {
+			continue
+		}
+		raw, ok := doc.Meta["agreement"].(string)
+		if !ok {
+			continue
+		}
+		agr, err := sparring.ParseAgreement(raw)
+		if err != nil {
+			add(
+				fmt.Sprintf("agreement %q is not open|aligned|agree-to-disagree", raw),
+				"question-front-matter",
+				"program/templates/question.schema.toml",
+				"set agreement to open, aligned, or agree-to-disagree",
+			)
+			continue
+		}
+		if agr != sparring.AgreeToDisagree {
+			continue
+		}
+		for _, miss := range sparring.MissingHeadings(agr, doc.Body) {
+			if !iffMissing(miss) {
+				continue
+			}
+			what, fix := sparringTeach(a.IDStr, miss)
+			add(what, "sparring", "program/contracts/sparring.md", fix)
+		}
+	}
+}
+
+func iffMissing(miss string) bool {
+	if strings.HasPrefix(miss, "### ") {
+		return true
+	}
+	return miss == "## Reasons" || miss == "## Crux"
+}
+
+func sparringTeach(id, miss string) (what, fix string) {
+	if strings.HasPrefix(miss, "### ") {
+		parent := miss
+		if i := strings.Index(miss, " under "); i >= 0 {
+			parent = miss[i+len(" under "):]
+		}
+		return id + " missing " + miss, "add ### Human and ### Agent under " + parent
+	}
+	return fmt.Sprintf("%s missing %s (required when agreement=agree-to-disagree)", id, miss),
+		fmt.Sprintf("add %s with ### Human and ### Agent", miss)
 }
 
 func checkStageScoped(m manifest.Manifest, arts []artifactFile, byHome map[string]schema.Schema, add func(string, string, string, string)) {

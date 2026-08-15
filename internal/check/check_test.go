@@ -3,6 +3,7 @@ package check_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -355,16 +356,38 @@ func TestAbortNothing(t *testing.T) {
 	}
 }
 
-func TestAgreeToDisagreeMissingCruxStillPasses(t *testing.T) {
-	root := scaffoldOffline(t, t.TempDir(), "Slice1 No IFF")
+func writeOQ(t *testing.T, root, name, body string) {
+	t.Helper()
 	qdir := filepath.Join(root, "questions")
 	if err := os.MkdirAll(qdir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	body := `+++
+	if err := os.WriteFile(filepath.Join(qdir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func findingHas(fs []check.Finding, substrs ...string) bool {
+	for _, f := range fs {
+		blob := f.What + "\n" + f.Convention + "\n" + f.Contract + "\n" + f.Fix
+		ok := true
+		for _, s := range substrs {
+			if !strings.Contains(blob, s) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
+const oqFront = `+++
 id = "OQ-001"
 title = "Use SQLite"
-agreement = "agree-to-disagree"
+agreement = %q
 date = "2026-08-15"
 +++
 
@@ -379,6 +402,14 @@ q
 c
 
 ## Positions
+%s
+## Disposition
+
+d
+`
+
+func disputedCompleteBody() string {
+	return fmt.Sprintf(oqFront, "agree-to-disagree", `
 
 ### Human
 
@@ -388,15 +419,213 @@ h
 
 a
 
-## Disposition
+## Reasons
 
-d
-`
-	if err := os.WriteFile(filepath.Join(qdir, "OQ-001-use-sqlite.md"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
+### Human
+
+rh
+
+### Agent
+
+ra
+
+## Crux
+
+### Human
+
+ch
+
+### Agent
+
+ca
+
+`)
+}
+
+func TestAgreeToDisagreeMissingCruxFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Missing Crux")
+	body := fmt.Sprintf(oqFront, "agree-to-disagree", `
+
+### Human
+
+h
+
+### Agent
+
+a
+
+## Reasons
+
+### Human
+
+rh
+
+### Agent
+
+ra
+
+`)
+	writeOQ(t, root, "OQ-001-use-sqlite.md", body)
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail: disputed missing ## Crux")
 	}
+	if !findingHas(r.Findings, "## Crux", "program/contracts/sparring.md", "sparring") {
+		t.Fatalf("want ## Crux + sparring.md finding, got %v", r.Findings)
+	}
+}
+
+func TestAgreeToDisagreeCompletePasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Complete")
+	writeOQ(t, root, "OQ-001-use-sqlite.md", disputedCompleteBody())
 	r := check.Run(root)
 	if !r.OK {
-		t.Fatalf("Slice 1 must not IFF-fail missing Crux; findings=%v", r.Findings)
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+}
+
+func TestAgreeToDisagreeMissingHumanUnderPositionsFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Missing Human")
+	body := fmt.Sprintf(oqFront, "agree-to-disagree", `
+
+### Agent
+
+a
+
+## Reasons
+
+### Human
+
+rh
+
+### Agent
+
+ra
+
+## Crux
+
+### Human
+
+ch
+
+### Agent
+
+ca
+
+`)
+	writeOQ(t, root, "OQ-001-use-sqlite.md", body)
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "### Human under ## Positions", "program/contracts/sparring.md") {
+		t.Fatalf("want ### Human finding, got %v", r.Findings)
+	}
+}
+
+func TestAgreeToDisagreeMissingReasonsFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Missing Reasons")
+	body := fmt.Sprintf(oqFront, "agree-to-disagree", `
+
+### Human
+
+h
+
+### Agent
+
+a
+
+## Crux
+
+### Human
+
+ch
+
+### Agent
+
+ca
+
+`)
+	writeOQ(t, root, "OQ-001-use-sqlite.md", body)
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, "## Reasons", "program/contracts/sparring.md", "sparring") {
+		t.Fatalf("want ## Reasons finding, got %v", r.Findings)
+	}
+}
+
+func TestAlignedWithoutCruxReasonsPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Aligned Bare")
+	body := fmt.Sprintf(oqFront, "aligned", `
+
+<!-- fill -->
+
+`)
+	writeOQ(t, root, "OQ-001-use-sqlite.md", body)
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+}
+
+func TestAlignedWithExtraCruxPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Aligned Extra")
+	body := fmt.Sprintf(oqFront, "aligned", `
+
+pos
+
+## Crux
+
+extra
+
+`)
+	writeOQ(t, root, "OQ-001-use-sqlite.md", body)
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+}
+
+func TestInvalidAgreementFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Bad Agree")
+	body := fmt.Sprintf(oqFront, "maybe", `
+
+<!-- fill -->
+
+`)
+	writeOQ(t, root, "OQ-001-use-sqlite.md", body)
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail")
+	}
+	if !findingHas(r.Findings, `agreement "maybe" is not open|aligned|agree-to-disagree`, "question-front-matter", "program/templates/question.schema.toml") {
+		t.Fatalf("want invalid-agreement teaching shape, got %v", r.Findings)
+	}
+}
+
+func TestOpenPositionsFillPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Open Fill")
+	body := fmt.Sprintf(oqFront, "open", `
+
+<!-- fill -->
+
+`)
+	writeOQ(t, root, "OQ-001-use-sqlite.md", body)
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+}
+
+func TestSparkZeroQuestionsPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice2 Spark Zero")
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass, findings=%v", r.Findings)
+	}
+	if r.Artifacts != 0 {
+		t.Fatalf("artifacts=%d want 0", r.Artifacts)
 	}
 }
