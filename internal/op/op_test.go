@@ -155,7 +155,7 @@ func TestStaleLockDetected(t *testing.T) {
 	if !stale {
 		t.Fatal("expected stale lock")
 	}
-	// Begin should clear stale and acquire.
+	// Begin should flock the existing stale file (same inode), not unlink first.
 	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
 	if err != nil {
 		t.Fatal(err)
@@ -262,4 +262,78 @@ func TestAbortNothing(t *testing.T) {
 	if !errors.Is(err, op.ErrNothingToAbort) {
 		t.Fatalf("got %v", err)
 	}
+}
+
+func TestCommitMarksDoneWhenDestExistsSourceGone(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Stage([]op.Staged{
+		{RelTo: "decisions/DEC-001.md", Content: []byte("artifact")},
+		{RelTo: "log.md", Content: []byte("log")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	j := s.Journal()
+	from0 := filepath.Join(root, filepath.FromSlash(j.Renames[0].From))
+	to0 := filepath.Join(root, filepath.FromSlash(j.Renames[0].To))
+	if err := os.MkdirAll(filepath.Dir(to0), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(from0, to0); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate crash after Rename before Done Save: dest present, source gone, Done=false.
+	j.Renames[0].Done = false
+	if err := journal.Save(root, j); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(to0)
+	if err != nil || string(b) != "artifact" {
+		t.Fatalf("dest = %q err=%v", b, err)
+	}
+	if _, err := journal.Load(root); !errors.Is(err, journal.ErrNotExist) {
+		t.Fatal("journal should finish")
+	}
+}
+
+func TestAbortRefusesLiveLock(t *testing.T) {
+	root := t.TempDir()
+	s, err := op.Begin(root, intent("DEC-001"), fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Stage([]op.Staged{
+		{RelTo: "decisions/DEC-001.md", Content: []byte("a")},
+		{RelTo: "log.md", Content: []byte("l")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	stageFile := filepath.Join(root, filepath.FromSlash(s.Journal().Renames[1].From))
+	if _, err := os.Stat(stageFile); err != nil {
+		t.Fatal(err)
+	}
+	err = op.Abort(root)
+	if !errors.Is(err, op.ErrLocked) {
+		t.Fatalf("want ErrLocked, got %v", err)
+	}
+	if _, err := journal.Load(root); err != nil {
+		t.Fatal("journal must remain under live lock")
+	}
+	if _, err := os.Stat(stageFile); err != nil {
+		t.Fatal("staged file must remain under live lock")
+	}
+	info, err := lock.Inspect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State != lock.Live {
+		t.Fatalf("lock state = %v", info.State)
+	}
+	_ = s.Close()
 }

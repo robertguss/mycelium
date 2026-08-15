@@ -2,8 +2,11 @@ package lock_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -106,5 +109,46 @@ func TestInspectLive(t *testing.T) {
 	}
 	if info.State != lock.Live || info.PID != h.PID() {
 		t.Fatalf("info = %+v", info)
+	}
+}
+
+func fileIno(t *testing.T, path string) uint64 {
+	t.Helper()
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		t.Fatal("stat Sys is not *syscall.Stat_t")
+	}
+	return st.Ino
+}
+
+func TestAcquireReusesLeftoverInode(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".mycelium"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := lock.Path(root)
+	if err := os.WriteFile(p, []byte("pid=2147483646\nstarted=2020-01-01T00:00:00Z\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inoBefore := fileIno(t, p)
+	h, err := lock.Acquire(root, time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Release()
+	inoAfter := fileIno(t, p)
+	if inoBefore != inoAfter {
+		t.Fatalf("inode changed: before=%d after=%d (Acquire must flock existing file)", inoBefore, inoAfter)
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), fmt.Sprintf("pid=%d", h.PID())) {
+		t.Fatalf("pid not overwritten: %q", b)
 	}
 }

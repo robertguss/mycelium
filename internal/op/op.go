@@ -57,16 +57,8 @@ func Begin(root string, intent Intent, now time.Time) (*Session, error) {
 		intent.OriginalID = existing.OriginalID
 	}
 
-	info, err := lock.Inspect(root)
-	if err != nil {
-		return nil, err
-	}
-	if info.State == lock.Stale {
-		if err := lock.RemoveStale(root); err != nil {
-			return nil, err
-		}
-	}
-
+	// Acquire opens the existing lock path (O_CREATE|O_RDWR) and flocks that
+	// inode. Do not RemoveStale first: unlinking then recreating splits inodes.
 	held, err := lock.Acquire(root, now)
 	if err != nil {
 		if errors.Is(err, lock.ErrBusy) {
@@ -196,6 +188,23 @@ func (s *Session) commitN(max int) (int, error) {
 		}
 		from := filepath.Join(s.root, filepath.FromSlash(s.journal.Renames[i].From))
 		to := filepath.Join(s.root, filepath.FromSlash(s.journal.Renames[i].To))
+		_, fromErr := os.Stat(from)
+		_, toErr := os.Stat(to)
+		fromOK := fromErr == nil
+		toOK := toErr == nil
+		if toOK && !fromOK {
+			// Crash between Rename and Save: dest landed, source gone.
+			s.journal.Renames[i].Done = true
+			applied++
+			if err := journal.Save(s.root, s.journal); err != nil {
+				return applied, err
+			}
+			continue
+		}
+		if toOK && fromOK {
+			_ = journal.Save(s.root, s.journal)
+			return applied, fmt.Errorf("op: rename conflict: both %s and %s exist", from, to)
+		}
 		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 			_ = journal.Save(s.root, s.journal)
 			return applied, err
@@ -263,24 +272,24 @@ func (s *Session) Close() error {
 
 // Abort clears staged temps, journal, and a stale lock. Does not delete
 // already-renamed destinations. Returns ErrNothingToAbort when neither
-// journal nor stale lock exists.
+// journal nor stale lock exists. A live lock refuses immediately.
 func Abort(root string) error {
+	info, err := lock.Inspect(root)
+	if err != nil {
+		return err
+	}
+	if info.State == lock.Live {
+		return fmt.Errorf("%w: pid=%d", ErrLocked, info.PID)
+	}
+
 	j, err := journal.Load(root)
 	hasJournal := err == nil
 	if err != nil && !errors.Is(err, journal.ErrNotExist) {
 		return err
 	}
-
-	info, err := lock.Inspect(root)
-	if err != nil {
-		return err
-	}
 	stale := info.State == lock.Stale
 
 	if !hasJournal && !stale {
-		if info.State == lock.Live {
-			return fmt.Errorf("%w: live lock pid=%d", ErrLocked, info.PID)
-		}
 		return ErrNothingToAbort
 	}
 
