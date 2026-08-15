@@ -240,7 +240,7 @@ func (s *Session) commitN(max int) (int, error) {
 			_ = journal.Save(s.root, s.journal)
 			return applied, fmt.Errorf("op: missing staged source %s", from)
 		}
-		// Replace existing To only for log.md / mycelium.toml / index.md (generator updates).
+		// Replace existing To only for known regenerable paths (generators / wake briefs).
 		if toOK && !allowReplace(toRel) {
 			_ = journal.Save(s.root, s.journal)
 			return applied, fmt.Errorf("%w: both %s and %s exist", ErrRenameConflict, from, to)
@@ -422,9 +422,17 @@ func validateContained(root, rel string) error {
 
 // allowReplace reports whether Commit may overwrite an existing destination.
 // log.md, mycelium.toml, and index.md are updated in place by generators.
+// briefs/*.md may be overwritten by wake (same-day replace + LATEST).
 func allowReplace(toRel string) bool {
 	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(toRel)))
-	return clean == "log.md" || clean == "mycelium.toml" || clean == "index.md"
+	if clean == "log.md" || clean == "mycelium.toml" || clean == "index.md" {
+		return true
+	}
+	if strings.HasPrefix(clean, "briefs/") && strings.HasSuffix(clean, ".md") {
+		rest := strings.TrimPrefix(clean, "briefs/")
+		return rest != "" && !strings.Contains(rest, "/")
+	}
+	return false
 }
 
 func validateOpID(id string) error {

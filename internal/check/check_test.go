@@ -14,6 +14,7 @@ import (
 	"github.com/robertguss/mycelium/internal/clock"
 	"github.com/robertguss/mycelium/internal/execrun"
 	"github.com/robertguss/mycelium/internal/journal"
+	"github.com/robertguss/mycelium/internal/manifest"
 	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/scaffold"
 )
@@ -53,8 +54,8 @@ func TestSparkInstanceCheckOK(t *testing.T) {
 	}
 }
 
-func TestIllegalStateTeachingError(t *testing.T) {
-	root := scaffoldOffline(t, t.TempDir(), "State Fail")
+func TestClarifiedStateLegal(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "State Clarified")
 	path := filepath.Join(root, "mycelium.toml")
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -71,12 +72,35 @@ func TestIllegalStateTeachingError(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want clarified legal, got %v", r.Findings)
+	}
+}
+
+func TestHandedOffStateFail(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "State Handed Off")
+	path := filepath.Join(root, "mycelium.toml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	patched := strings.Replace(string(b), `state = 'spark'`, `state = 'handed-off'`, 1)
+	if patched == string(b) {
+		patched = strings.Replace(string(b), `state = "spark"`, `state = "handed-off"`, 1)
+	}
+	if patched == string(b) {
+		t.Fatalf("could not patch state in %q", b)
+	}
+	if err := os.WriteFile(path, []byte(patched), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
 	if r.OK {
 		t.Fatal("want failure")
 	}
 	found := false
 	for _, f := range r.Findings {
-		if f.Convention == "lifecycle" && strings.Contains(f.What, "clarified") {
+		if f.Convention == "lifecycle" && strings.Contains(f.What, "handed-off") && strings.Contains(f.What, "PHASE-06") {
 			found = true
 			if f.Contract != "program/contracts/lifecycle.md" {
 				t.Fatalf("contract=%q", f.Contract)
@@ -84,7 +108,45 @@ func TestIllegalStateTeachingError(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("want lifecycle finding, got %v", r.Findings)
+		t.Fatalf("want PHASE-06 lifecycle finding, got %v", r.Findings)
+	}
+}
+
+func TestSimmeringBadRevisitFail(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "State Fail")
+	path := filepath.Join(root, "mycelium.toml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.Parse(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.State = "simmering"
+	m.Revisit = "in two weeks"
+	out, err := manifest.Encode(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want failure")
+	}
+	found := false
+	for _, f := range r.Findings {
+		if f.Convention == "revisit" && strings.Contains(f.What, "simmering") {
+			found = true
+			if f.Contract != "program/contracts/revisit.md" {
+				t.Fatalf("contract=%q", f.Contract)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("want revisit finding, got %v", r.Findings)
 	}
 }
 

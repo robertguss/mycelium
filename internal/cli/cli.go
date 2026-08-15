@@ -17,6 +17,7 @@ import (
 	"github.com/robertguss/mycelium/internal/op"
 	"github.com/robertguss/mycelium/internal/publish"
 	"github.com/robertguss/mycelium/internal/scaffold"
+	"github.com/robertguss/mycelium/internal/statecmd"
 	"github.com/robertguss/mycelium/internal/teach"
 	"github.com/robertguss/mycelium/internal/tiercmd"
 	"github.com/robertguss/mycelium/internal/version"
@@ -32,6 +33,8 @@ Usage:
   mycelium tier <tier> [--dir PATH]
   mycelium publish [--dir PATH]
   mycelium index [--dir PATH]
+  mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]
+  mycelium wake [--dir PATH]
   mycelium -h | --help
 `
 
@@ -87,6 +90,10 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return cmdPublish(args[1:], stdout, stderr, deps)
 	case "index":
 		return cmdIndex(args[1:], stdout, stderr, deps)
+	case "state":
+		return cmdState(args[1:], stdout, stderr, deps)
+	case "wake":
+		return cmdWake(args[1:], stdout, stderr, deps)
 	default:
 		return teach.Write(stderr,
 			fmt.Sprintf("unknown command %q", cmd),
@@ -292,7 +299,11 @@ func cmdPublish(args []string, stdout, stderr io.Writer, deps Deps) int {
 func cmdIndex(args []string, stdout, stderr io.Writer, deps Deps) int {
 	opts, err := parseIndexFlags(args)
 	if err == errHelp {
-		fmt.Fprintln(stdout, "Usage: mycelium index [--dir PATH]")
+		fmt.Fprintln(stdout, `Usage: mycelium index [--dir PATH]
+
+Examples:
+  mycelium index
+  mycelium index --dir ./my-idea`)
 		return 0
 	}
 	if err != nil {
@@ -318,6 +329,90 @@ func cmdIndex(args []string, stdout, stderr io.Writer, deps Deps) int {
 		Cwd:  cwd,
 		Argv: argv,
 	}, indexcmd.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
+func cmdState(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseStateFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, `Usage: mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]
+
+Examples:
+  mycelium state exploring
+  mycelium state simmering --revisit 2026-08-08
+  mycelium state simmering --revisit event:after-iphone-launch
+  mycelium state clarified --dir ./my-idea
+  mycelium state archived`)
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"program/contracts/lifecycle.md",
+			"usage: mycelium state <exploring|simmering|clarified|archived> [--dir PATH] [--revisit VALUE]",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	argv := append([]string{"state"}, args...)
+	return statecmd.RunState(statecmd.Options{
+		Target:     opts.target,
+		Dir:        opts.dir,
+		Cwd:        cwd,
+		Revisit:    opts.revisit,
+		HasRevisit: opts.hasRevisit,
+		Argv:       argv,
+	}, statecmd.Deps{
+		Clock:  deps.Clock,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+}
+
+func cmdWake(args []string, stdout, stderr io.Writer, deps Deps) int {
+	opts, err := parseWakeFlags(args)
+	if err == errHelp {
+		fmt.Fprintln(stdout, `Usage: mycelium wake [--dir PATH]
+
+Examples:
+  mycelium wake
+  mycelium wake --dir ./my-idea`)
+		return 0
+	}
+	if err != nil {
+		return teach.Write(stderr,
+			err.Error(),
+			"command-flags",
+			"program/contracts/wake.md",
+			"usage: mycelium wake [--dir PATH]",
+		)
+	}
+	cwd, err := deps.Getwd()
+	if err != nil {
+		return teach.Write(stderr,
+			fmt.Sprintf("cannot resolve cwd: %v", err),
+			"command-flags",
+			"framework/phases/PHASE-01-implementation-brief.md",
+			"retry from a readable working directory",
+		)
+	}
+	argv := append([]string{"wake"}, args...)
+	return statecmd.RunWake(statecmd.Options{
+		Dir:  opts.dir,
+		Cwd:  cwd,
+		Argv: argv,
+	}, statecmd.Deps{
 		Clock:  deps.Clock,
 		Stdout: stdout,
 		Stderr: stderr,
@@ -430,6 +525,17 @@ type publishFlags struct {
 }
 
 type indexFlags struct {
+	dir string
+}
+
+type stateFlags struct {
+	target     string
+	dir        string
+	revisit    string
+	hasRevisit bool
+}
+
+type wakeFlags struct {
 	dir string
 }
 
@@ -552,6 +658,72 @@ func parsePublishFlags(args []string) (publishFlags, error) {
 
 func parseIndexFlags(args []string) (indexFlags, error) {
 	var out indexFlags
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			return out, fmt.Errorf("unexpected argument %q", a)
+		}
+	}
+	return out, nil
+}
+
+func parseStateFlags(args []string) (stateFlags, error) {
+	var out stateFlags
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			return out, errHelp
+		case a == "--dir":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--dir requires a path")
+			}
+			i++
+			out.dir = args[i]
+		case strings.HasPrefix(a, "--dir="):
+			out.dir = strings.TrimPrefix(a, "--dir=")
+		case a == "--revisit":
+			if i+1 >= len(args) {
+				return out, fmt.Errorf("--revisit requires a value")
+			}
+			i++
+			out.revisit = args[i]
+			out.hasRevisit = true
+		case strings.HasPrefix(a, "--revisit="):
+			out.revisit = strings.TrimPrefix(a, "--revisit=")
+			out.hasRevisit = true
+		case strings.HasPrefix(a, "-"):
+			return out, fmt.Errorf("unknown flag %q", a)
+		default:
+			positionals = append(positionals, a)
+		}
+	}
+	if len(positionals) == 0 {
+		return out, fmt.Errorf("state requires a target")
+	}
+	if len(positionals) > 1 {
+		return out, fmt.Errorf("unexpected argument %q", positionals[1])
+	}
+	out.target = positionals[0]
+	return out, nil
+}
+
+func parseWakeFlags(args []string) (wakeFlags, error) {
+	var out wakeFlags
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
