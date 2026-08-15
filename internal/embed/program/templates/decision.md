@@ -41,3 +41,5 @@ owner = "TBD"
 ## Approval
 
 <!-- fill -->
+
+<!-- Optional section (not required): ## Dissent — if you add this heading, cite at least one resolvable OQ-### or ASM-### -->

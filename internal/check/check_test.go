@@ -707,3 +707,106 @@ func TestGlossaryMissingFileNoNewBind(t *testing.T) {
 		}
 	}
 }
+
+const decBody = `+++
+id = "DEC-001"
+title = "Ship it"
+status = "Proposed"
+date = "2026-08-15"
+owner = "TBD"
++++
+
+# DEC-001 — Ship it
+
+## Context
+
+c
+
+## Decision
+
+d
+
+## Rationale
+
+r
+
+## Consequences
+
+co
+
+## Alternatives Considered
+
+a
+
+## Risks
+
+ri
+
+## Revisit Triggers
+
+rt
+
+## Approval
+
+ok
+`
+
+func writeDEC(t *testing.T, root, name, body string) {
+	t.Helper()
+	dir := filepath.Join(root, "decisions")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDECWithoutDissentPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice4 No Dissent")
+	writeDEC(t, root, "DEC-001-ship-it.md", decBody)
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass without ## Dissent, findings=%v", r.Findings)
+	}
+}
+
+func TestDECDissentCitingRealOQPasses(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice4 Dissent OQ")
+	writeOQ(t, root, "OQ-001-use-sqlite.md", fmt.Sprintf(oqFront, "open", "\n<!-- fill -->\n"))
+	body := decBody + "\n## Dissent\n\nStill disagree; see OQ-001.\n"
+	writeDEC(t, root, "DEC-001-ship-it.md", body)
+	r := check.Run(root)
+	if !r.OK {
+		t.Fatalf("want pass with resolvable OQ in Dissent, findings=%v", r.Findings)
+	}
+}
+
+func TestDECDissentNoOQOrASMFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice4 Dissent Empty")
+	body := decBody + "\n## Dissent\n\nI object.\n"
+	writeDEC(t, root, "DEC-001-ship-it.md", body)
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail: Dissent without OQ/ASM")
+	}
+	if !findingHas(r.Findings, "## Dissent has no resolvable OQ-### or ASM-###", "program/contracts/sparring.md", "dissent") {
+		t.Fatalf("want dissent teaching shape, got %v", r.Findings)
+	}
+	if !findingHas(r.Findings, "cite an existing OQ-### or ASM-### in ## Dissent, or remove the heading") {
+		t.Fatalf("want fix text, got %v", r.Findings)
+	}
+}
+
+func TestDECDissentCitingOnlyDECFails(t *testing.T) {
+	root := scaffoldOffline(t, t.TempDir(), "Slice4 Dissent DEC Only")
+	body := decBody + "\n## Dissent\n\nSee DEC-001 for context.\n"
+	writeDEC(t, root, "DEC-001-ship-it.md", body)
+	r := check.Run(root)
+	if r.OK {
+		t.Fatal("want fail: DEC-only token does not satisfy dissent")
+	}
+	if !findingHas(r.Findings, "DEC-001 ## Dissent has no resolvable OQ-### or ASM-###", "dissent", "program/contracts/sparring.md") {
+		t.Fatalf("want dissent finding, got %v", r.Findings)
+	}
+}

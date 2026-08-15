@@ -2,8 +2,11 @@ package sparring
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+var dissentIDRE = regexp.MustCompile(`\b(OQ|ASM)-[0-9]+\b`)
 
 type Agreement string
 
@@ -141,4 +144,12 @@ func glossaryH2Terms(content string) []string {
 		terms = append(terms, strings.TrimPrefix(trim, "## "))
 	}
 	return terms
+}
+
+func HasH2(body, h2 string) bool {
+	return hasExactH2(body, h2)
+}
+
+func DissentIDs(section string) []string {
+	return dissentIDRE.FindAllString(section, -1)
 }

@@ -338,3 +338,44 @@ func TestMissingGlossaryDefinitions(t *testing.T) {
 		})
 	}
 }
+
+func TestDissentIDs(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		sec  string
+		want []string
+	}{
+		{"empty", "", nil},
+		{"dec-only", "Overruled; see DEC-001.\n", nil},
+		{"oq", "See OQ-001 for the crux.\n", []string{"OQ-001"}},
+		{"asm", "Assumption ASM-002 stands.\n", []string{"ASM-002"}},
+		{"both", "OQ-001 and ASM-003 disagree.\n", []string{"OQ-001", "ASM-003"}},
+		{"dec-and-oq", "DEC-001 lost; OQ-007 remains.\n", []string{"OQ-007"}},
+		{"prose-ok", "I still think this is wrong. Cite OQ-012.\n", []string{"OQ-012"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := sparring.DissentIDs(tc.sec)
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("DissentIDs=%v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHasH2DissentSection(t *testing.T) {
+	t.Parallel()
+	body := "## Approval\n\nx\n\n## Dissent\n\nOQ-001\n"
+	if !sparring.HasH2(body, "Dissent") {
+		t.Fatal("want HasH2 Dissent")
+	}
+	if sparring.HasH2(body, "Crux") {
+		t.Fatal("want no Crux H2")
+	}
+	sec := sparring.SectionBody(body, "Dissent")
+	if !slices.Equal(sparring.DissentIDs(sec), []string{"OQ-001"}) {
+		t.Fatalf("section extract=%q ids=%v", sec, sparring.DissentIDs(sec))
+	}
+}
