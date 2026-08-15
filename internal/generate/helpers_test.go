@@ -153,6 +153,15 @@ func TestRunEarlyTeachingErrors(t *testing.T) {
 	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: t.TempDir()}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "not a mycelium instance") {
 		t.Fatalf("root exit=%d stderr=%q", code, stderr.String())
 	}
+	noRoot := t.TempDir()
+	stderr.Reset()
+	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: noRoot, Dir: "relative"}, Deps{Stderr: &stderr}); code != 1 {
+		t.Fatalf("relative dir exit=%d stderr=%q", code, stderr.String())
+	}
+	stderr.Reset()
+	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: noRoot, Dir: filepath.Join(noRoot, "absolute")}, Deps{Stderr: &stderr}); code != 1 {
+		t.Fatalf("absolute dir exit=%d stderr=%q", code, stderr.String())
+	}
 
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "mycelium.toml"), []byte("invalid = true"), 0o644); err != nil {
@@ -183,6 +192,23 @@ func TestRunEarlyTeachingErrors(t *testing.T) {
 	stderr.Reset()
 	if code := Run(Options{TypeKey: "decision", Title: "Valid", Cwd: root}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "log.md invalid") {
 		t.Fatalf("log invalid exit=%d stderr=%q", code, stderr.String())
+	}
+	if err := os.WriteFile(filepath.Join(root, "log.md"), []byte("# Log\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findingSchema := strings.ReplaceAll(helperSchema, `namespace = "DEC"`, `namespace = "FND"`)
+	findingSchema = strings.ReplaceAll(findingSchema, `home = "decisions"`, `home = "findings"`)
+	findingSchema = strings.ReplaceAll(findingSchema, "stage_scoped = false", "stage_scoped = true")
+	templateDir := filepath.Join(root, "program", "templates")
+	if err := os.WriteFile(filepath.Join(templateDir, "finding.schema.toml"), []byte(findingSchema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "finding.md"), []byte("{{ID}}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stderr.Reset()
+	if code := Run(Options{TypeKey: "finding", Title: "Valid", Cwd: root}, Deps{Stderr: &stderr}); code != 1 || !strings.Contains(stderr.String(), "no [identifiers] range") {
+		t.Fatalf("range exit=%d stderr=%q", code, stderr.String())
 	}
 }
 

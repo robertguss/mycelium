@@ -120,7 +120,13 @@ filename_pattern = "x"
 stage_scoped = false
 digits = 3
 required_front_matter = ["id"]`, want: schema.ErrRequired},
-		{name: "invalid enums table", body: decisionSchema + `
+		{name: "invalid enums table", body: `namespace = "DEC"
+home = "decisions"
+filename_pattern = "x"
+stage_scoped = false
+digits = 3
+required_front_matter = ["id"]
+required_sections = ["Body"]
 enums = "bad"`, want: schema.ErrInvalid},
 		{name: "invalid enum entry", body: decisionSchema + `
 [enums.owner]
