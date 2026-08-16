@@ -71,8 +71,8 @@ council CLI.**
 
 ## Do not
 
-- Run `mycelium council`, `mycelium ladder`, `mycelium replicate`, or
-  `mycelium handoff` (those verbs do not exist).
+- Run `mycelium council`, `mycelium ladder`, or `mycelium replicate`
+  (those verbs do not exist).
 - Treat CI / an Actions job as the done bar.
 - Flip `handed-off`.
 - `git commit` unless the human asks.

@@ -249,11 +249,15 @@ func TestSkeletonAndSkillExist(t *testing.T) {
 		"program/skeleton/AGENTS.md",
 		"program/skeleton/gitignore",
 		"program/skeleton/index.md",
+		"program/skills/session/SKILL.md",
 		"program/skills/mycelium-cli/SKILL.md",
 		"program/skills/spark/SKILL.md",
-		"program/skills/wake/SKILL.md",
-		"program/skills/portfolio/SKILL.md",
 		"program/skills/thinking/SKILL.md",
+		"program/skills/simmer/SKILL.md",
+		"program/skills/wake/SKILL.md",
+		"program/skills/clarify/SKILL.md",
+		"program/skills/handoff/SKILL.md",
+		"program/skills/portfolio/SKILL.md",
 	}
 	for _, rel := range paths {
 		p := filepath.Join(root, rel)
@@ -290,7 +294,7 @@ func TestEmbedProgramHasRegisteredContent(t *testing.T) {
 		}
 	}
 	for _, skill := range []string{
-		"mycelium-cli", "spark", "wake", "portfolio", "thinking",
+		"session", "mycelium-cli", "spark", "thinking", "simmer", "wake", "clarify", "handoff", "portfolio",
 	} {
 		path := "program/skills/" + skill + "/SKILL.md"
 		if _, err := embed.Program.ReadFile(path); err != nil {

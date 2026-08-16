@@ -1,52 +1,85 @@
 # Getting Started
 
-## Purpose
+You are inside an **idea instance** (`mycelium.toml` is in this tree). The
+product CLI is already installed. This file is the in-repo start page for
+you and the agent.
 
-A reusable operating system for deep, multi-stage research with LLMs and
-repository-aware agents. Ordinary brainstorming or a one-pass plan is not
-enough for the projects this workflow targets.
+Mycelium is meant to be used **with an LLM**. Open this folder in your
+agent runtime. State your goal. Follow `.agents/skills/session/SKILL.md`.
 
-The program ends with:
+The CLI is the ledger. It does not invent scope, accept stages, or commit.
+
+## What this idea is for
+
+A durable place to think. The program ends, when you take it that far, with:
 
 - A validated, adversarially reviewed **definitive specification**
 - A revised **implementation plan** organized into **phases and milestones**
 
-It deliberately **stops before** a granular coding backlog or agent task
-packets.
+It **stops before** a granular coding backlog. The last artifact is
+`handoff/PACKET.md`.
 
-## First-time flow (recommended)
+You do not owe that spine to every idea. A thirty-minute spark is a legal
+use.
 
-1. **Install** the `mycelium` CLI (see the product repo `docs/install.md`).
-2. **`mycelium new idea "your-working-title"`** — scaffolds an idea repo with
-   `mycelium.toml` and the methodology copy. Does not invent scope or research
-   tracks. Does not git-commit instance work product.
-3. **Discovery** — Research Program Architect interviews you **one question at
-   a time** (with a recommendation each time) until ≥95% confidence.
-4. **Approve framing** — problem, outcome, locked scope, uncertainties, tracks,
-   rigor tier.
-5. **Accept Program Blueprint** (when used for this idea).
-6. **Accept Research Charter** (when used for this idea).
-7. **Execute the adaptive research graph** with just-in-time prompts, fresh
-   sessions, validation, and human approval gates.
-8. **Synthesis → adversarial review → revised spec → plan → plan review →
-   final plan.**
+## Pick a session
 
-## What `mycelium new idea` does and does not do
+Say the goal in the first message. The `session` skill maps it:
 
-**Does:** scaffold layout, write `mycelium.toml`, emit `program/` and skills,
-set birth `state = spark` and default tier.
+| You want | Skill |
+| --- | --- |
+| Brand-new idea, first thought | `spark` |
+| Work a question or decide something | `thinking` |
+| Park it until a date or event | `simmer` |
+| Return after a gap | `wake` |
+| Destination reached | `clarify` |
+| Ready to implement | `handoff` |
+| Survey many ideas | `portfolio` |
+| Multi-day research program | this file + `program/reference/governance-spine.md` |
+| Another model’s read | `second-opinion` |
+| Multi-model replication | `council` |
 
-**Does not:** invent decisions, tracks, or conclusions; accept any stage; skip
-discovery; git-commit instance work product.
+`thinking` stays on in every non-archived working session.
 
-Rigor tier defaults to `focused` at birth unless `--tier` is set; raise with
-`mycelium tier` when appropriate.
+## First sitting on a new idea
 
-## Required reading order for a new contributor
+1. Read `index.md` and `mycelium.toml` (not the whole tree).
+2. Interview the human **one question at a time**, with a recommendation
+   each time, until the first thought is stateable.
+3. `mycelium state exploring`
+4. `mycelium new question "…"` or `mycelium new decision "…"`
+5. `mycelium check`
 
-1. Instance [`README.md`](../../README.md) (idea root)
-2. Instance [`AGENTS.md`](../../AGENTS.md)
-3. This file and [`resume-protocol.md`](resume-protocol.md)
+Do not invent tracks, a blueprint, or conclusions. Do not commit unless
+the human asks.
+
+## Longer program (when the idea earns it)
+
+```text
+Discovery → Blueprint → Charter
+  → Adaptive focused-research graph
+  → Optional replication / reconciliation
+  → Synthesis → spec review → revised spec
+  → Implementation plan → plan review → final plan
+  → mycelium handoff
+```
+
+Raise the tier first (`mycelium tier standard` or `high-assurance`). Run
+each substantive stage in a **fresh** agent session with a self-contained
+packet. Human approval gates: [`approval-gates.md`](approval-gates.md).
+
+## What `mycelium new idea` already did
+
+**Did:** scaffold layout, write `mycelium.toml`, emit `program/` and
+skills, set `state = spark` and default `tier = focused`.
+
+**Did not:** invent decisions, skip discovery, or git-commit.
+
+## Required reading order
+
+1. This idea’s `README.md` and `AGENTS.md`
+2. This file and [`resume-protocol.md`](resume-protocol.md)
+3. `.agents/skills/session/SKILL.md`
 4. Accepted Blueprint and Charter (once they exist)
 5. Current implementation authority (revised spec / final plan when accepted)
 
@@ -54,13 +87,10 @@ Rigor tier defaults to `focused` at birth unless `--tier` is set; raise with
 
 | Command | Purpose |
 | --- | --- |
-| `mycelium new idea "…"` | Scaffold a new idea repo |
 | `mycelium check` | Convention conformance |
-| `mycelium status` | Instance status (`--all` for portfolio) |
-| `mycelium state` / `wake` | Lifecycle transitions |
+| `mycelium status` | This idea (`--all` for the portfolio) |
+| `mycelium state` / `wake` | Lifecycle |
+| `mycelium new <type> "<Title>"` | Next artifact |
 | `mycelium handoff` | Packet + `handed-off` from `clarified` |
 
-## Skills
-
-Use `.agents/skills/` entry points when your agent supports skills; otherwise
-follow `AGENTS.md` and this `program/` tree directly.
+Full command list: `.agents/skills/mycelium-cli/SKILL.md`.

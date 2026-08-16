@@ -10,6 +10,9 @@ description: >
 
 # Mycelium CLI
 
+The CLI is the ledger. Prefer the `session` skill to pick a ritual, then
+use these commands.
+
 ## Commands
 
 | Command | Purpose |
@@ -80,7 +83,7 @@ Runtimes that cannot fan out skip rungs 2–3; sparring still applies.
 ## Skills on scaffold
 
 New `mycelium new idea` scaffolds emit
-`.agents/skills/{mycelium-cli,spark,wake,portfolio,thinking,council,second-opinion}/SKILL.md`
+`.agents/skills/{session,mycelium-cli,spark,thinking,simmer,wake,clarify,handoff,portfolio,council,second-opinion}/SKILL.md`
 when the pack is present. `tier`, `index`, `state`, and `wake` do not retrofit
 skills. Existing instances: re-scaffold or copy the pack **manually**.
 

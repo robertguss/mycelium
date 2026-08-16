@@ -729,7 +729,7 @@ func resolveRoot(opts Options, deps Deps) (string, int) {
 			return "", teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot resolve cwd: %v", err),
 				"command-flags",
-				"framework/phases/PHASE-06-implementation-brief.md",
+				"program/contracts/handoff-packet.md",
 				"retry from a readable working directory",
 			)
 		}

@@ -3,6 +3,9 @@
 This repository is the **mycelium product repo** (the CLI), not an idea instance.
 Idea-instance rules live in `program/skeleton/AGENTS.md`.
 
+Human-facing docs: [`README.md`](README.md), [`docs/user-guide.md`](docs/user-guide.md),
+[`docs/install.md`](docs/install.md).
+
 ## Verify
 
 ```bash
@@ -25,7 +28,7 @@ research-program.toml
 
 Deleting leftover ADRP files from *this* repo does not change `ForbiddenPaths`.
 
-## Git and commits (DEC-010)
+## Git and commits
 
 The CLI never git-commits instance work product. Agents do not push to `main`.
 
@@ -50,8 +53,9 @@ That wraps `scripts/release.sh`. Do not restore ADRP bootstrap recipes
 
 ## Authority
 
-Accepted `framework/decisions/DEC-###` and `framework/blueprint.md` govern this
-product. Deleted `docs/00-program-blueprint.md` is not authority.
+Shipped idea rules live in `program/contracts/` (emitted into instances).
+Operator walkthrough: `docs/user-guide.md`. After scaffold, start at
+`program/operator/getting-started.md`.
 
 ## Build
 

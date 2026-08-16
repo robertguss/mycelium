@@ -1,5 +1,8 @@
 # Program State Machine
 
+This is the **research-stage** status machine (planned → accepted), not
+the idea lifecycle. Idea states live in `program/contracts/lifecycle.md`.
+
 ## Canonical stage statuses
 
 `planned` | `prompt-ready` | `in-progress` | `awaiting-validation` |

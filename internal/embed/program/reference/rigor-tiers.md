@@ -13,7 +13,11 @@ Small, reversible, low-risk, technically familiar projects.
 - One synthesis; one spec review; one plan review
 - Additional review only for a discovered blocking flaw
 
-## Standard (template default — proposed until Blueprint)
+Birth default is **focused**. Raise with `mycelium tier` when the idea
+earns it. The architect proposes a tier; the human approves it (in the
+Blueprint when the long program is in use).
+
+## Standard
 
 Most meaningful software projects.
 

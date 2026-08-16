@@ -1,7 +1,5 @@
 # Repository Bootstrap
 
-## Standard layout
-
 An idea instance is created with `mycelium new idea`. Typical layout:
 
 ```text
@@ -10,12 +8,13 @@ An idea instance is created with `mycelium new idea`. Typical layout:
 ├── AGENTS.md
 ├── CONTEXT.md
 ├── mycelium.toml
+├── index.md
 ├── log.md
-├── .agents/skills/          # emitted mycelium skills
+├── .agents/skills/          # session, spark, thinking, …
 ├── program/                 # methodology (this library)
-├── briefs/
+├── briefs/                  # written on wake
 ├── handoff/                 # when handed off
-└── <type homes as needed>/  # decisions/, findings/, …
+└── <type homes as needed>/  # decisions/, questions/, …
 ```
 
 Focused research track files are **not** pre-created. After Blueprint
@@ -23,32 +22,30 @@ acceptance (when used), create them just-in-time from
 [`../templates/`](../templates/).
 
 Do **not** expect a Justfile, `scripts/`, or `research-program.toml` in an
-idea repo — those are product-repo leftovers and are forbidden to emit.
+idea repo. Scaffold will not emit `framework/` either.
 
 ## Stable filenames
 
 Do **not** use: `final.md`, `final-v2.md`, `really-final.md`, `new-plan.md`,
-`updated-spec.md`. Use stable, numbered, role-based names. Git history records
-revisions.
+`updated-spec.md`. Use stable, numbered, role-based names. Git history
+records revisions.
 
 ## Placeholder rule
 
-Bootstrap may create placeholders to reserve paths. A placeholder **does not**
-prove stage completion. Only a validated, committed artifact whose metadata
+Bootstrap may create placeholders to reserve paths. A placeholder **does
+not** prove stage completion. Only a validated artifact whose metadata
 status is **accepted** may unlock downstream work.
 
 ## Bootstrap task (for repository agents)
 
 See [`../templates/bootstrap-task.md`](../templates/bootstrap-task.md).
 
-Rules:
-
 - Do not conduct substantive research.
 - Do not invent project decisions beyond approved discovery output.
 - Do not overwrite substantive content.
 - Use stable filenames.
-- Do not run git unless the human explicitly asks (the CLI never git-commits
-  instance work product).
+- Do not run git unless the human explicitly asks (the CLI never
+  git-commits instance work product).
 - Validate the complete tree with `mycelium check`.
 
 ## Manifest
@@ -61,15 +58,15 @@ absent from governing Markdown artifacts.
 
 ### README.md
 
-Idea purpose, how to resume, what to read first.
+Idea purpose, how to resume, what to read first. Open this folder in an
+agent; do not treat the README as a command cheat-sheet.
 
 ### AGENTS.md
 
-CLI surface, skills, manual floor, teaching errors (see
+Skills, CLI surface, manual floor, teaching errors (see
 `program/skeleton/AGENTS.md`).
 
 ### mycelium.toml
 
-Canonical operational manifest (DEC-012; see
-[`../contracts/manifest.md`](../contracts/manifest.md) and
-[`../reference/state-machine.md`](../reference/state-machine.md)).
+Canonical operational manifest (see
+[`../contracts/manifest.md`](../contracts/manifest.md)).

@@ -55,7 +55,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			"supersede requires <OLD-ID> --by <NEW-ID>",
 			"command-flags",
-			"framework/phases/PHASE-05-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"mycelium supersede DEC-001 --by DEC-002",
 		)
 	}
@@ -68,7 +68,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot resolve cwd: %v", err),
 				"command-flags",
-				"framework/phases/PHASE-05-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"retry from a readable working directory",
 			)
 		}
@@ -232,7 +232,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot update %s: %v", oldID, err),
 				"supersede",
-				"framework/phases/PHASE-05-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"fix front matter and retry",
 			)
 		}
@@ -242,7 +242,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot update %s: %v", newID, err),
 				"supersede",
-				"framework/phases/PHASE-05-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"fix front matter and retry",
 			)
 		}
@@ -311,7 +311,7 @@ func teachRefusal(stderr io.Writer, r *supersede.Refusal) int {
 	return teach.Write(stderr,
 		r.What,
 		"supersede",
-		"framework/phases/PHASE-05-implementation-brief.md",
+		"program/contracts/conformance.md",
 		r.Fix,
 	)
 }

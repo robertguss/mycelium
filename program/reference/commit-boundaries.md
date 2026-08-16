@@ -1,7 +1,8 @@
 # Commit Boundaries
 
 Each accepted substantive artifact should normally receive its own coherent
-commit. **Humans run git**; Just recipes do not.
+commit. **Humans run git.** The CLI never commits idea work product. Agents
+commit only when the human asks.
 
 Recommended patterns:
 

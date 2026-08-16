@@ -17,12 +17,17 @@ Explicit human approval is required:
 13. Before a material program amendment.
 14. Before accepting a formal Decision Record.
 
+These gates bind the **long program**. A spark sitting that only captures
+a first thought does not walk this list.
+
 Within a commissioned stage, the agent proceeds autonomously and does not
-interrupt the user unless a true blocker exists under the commissioning prompt.
+interrupt the user unless a true blocker exists under the commissioning
+prompt.
 
 ## Git is mandatory
 
-The research program uses Git as the durable system of record from the
-beginning. There is no chat-only mode as an equivalent alternative.
+The idea uses Git as the durable system of record. There is no chat-only
+mode as an equivalent alternative.
 
-Just recipes in this template **edit files only**; humans run git add/commit/push.
+The CLI and the agent **edit files only**. Humans run `git add`,
+`commit`, and `push`, unless the human explicitly delegates a commit.

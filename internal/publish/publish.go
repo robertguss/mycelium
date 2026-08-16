@@ -92,7 +92,7 @@ func Run(opts Options, deps Deps) Outcome {
 			Code: teach.Write(deps.Stderr,
 				"publish refused while offline",
 				"command-flags",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"omit --offline / MYCELIUM_OFFLINE=1, or run mycelium publish when network is allowed",
 			),
 			Kind: KindFailed,
@@ -108,7 +108,7 @@ func Run(opts Options, deps Deps) Outcome {
 		if err != nil {
 			return fail(deps, fmt.Sprintf("cannot resolve cwd: %v", err),
 				"command-flags",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"retry from a readable working directory")
 		}
 		start = wd
@@ -118,7 +118,7 @@ func Run(opts Options, deps Deps) Outcome {
 	if err != nil {
 		return fail(deps, "not a mycelium instance (no mycelium.toml found)",
 			"instance-root",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"run from an instance directory, or pass --dir PATH")
 	}
 
@@ -141,7 +141,7 @@ func Run(opts Options, deps Deps) Outcome {
 	if err != nil {
 		return fail(deps, fmt.Sprintf("cannot read log.md: %v", err),
 			"log",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"restore log.md at the instance root")
 	}
 
@@ -161,7 +161,7 @@ func Run(opts Options, deps Deps) Outcome {
 		}
 		return fail(deps, "gh is not on PATH",
 			"publish",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"install GitHub CLI (gh) and authenticate with: gh auth login")
 	}
 
@@ -179,7 +179,7 @@ func Run(opts Options, deps Deps) Outcome {
 		}
 		return fail(deps, fmt.Sprintf("gh is not authenticated: %s", detail),
 			"publish",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"run: gh auth login")
 	}
 
@@ -187,7 +187,7 @@ func Run(opts Options, deps Deps) Outcome {
 	if err != nil {
 		return fail(deps, err.Error(),
 			"publish",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"fix git remotes and gh access, then retry")
 	}
 
@@ -205,7 +205,7 @@ func Run(opts Options, deps Deps) Outcome {
 	if repoName == "" {
 		return fail(deps, "cannot determine repository name",
 			"publish",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"set slug in mycelium.toml")
 	}
 
@@ -259,7 +259,7 @@ func Run(opts Options, deps Deps) Outcome {
 			rollbackOrClose(sess)
 			return fail(deps, loginErr.Error(),
 				"publish",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"run: gh auth login")
 		}
 		desc := "idea: " + m.IdeaName
@@ -283,7 +283,7 @@ func Run(opts Options, deps Deps) Outcome {
 			}
 			return fail(deps, fmt.Sprintf("gh repo create failed: %s", detail),
 				"publish",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"fix the repository name is free and gh has create permission")
 		}
 		createdName = repoName
@@ -319,7 +319,7 @@ func Run(opts Options, deps Deps) Outcome {
 			}
 			return fail(deps, fmt.Sprintf("git remote add failed: %s", detail),
 				"publish",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				fmt.Sprintf("add origin manually: git remote add origin https://github.com/%s.git", ownerRepo))
 		}
 	}
@@ -338,7 +338,7 @@ func Run(opts Options, deps Deps) Outcome {
 			if !fixtureNameRE.MatchString(createdName) {
 				fix = fmt.Sprintf("repo left at https://github.com/%s; %s", ownerRepo, fix)
 			}
-			return fail(deps, msg, "publish", "framework/phases/PHASE-01-implementation-brief.md", fix)
+			return fail(deps, msg, "publish", "program/contracts/conformance.md", fix)
 		}
 	}
 

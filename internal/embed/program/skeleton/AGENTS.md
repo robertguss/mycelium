@@ -2,6 +2,10 @@
 
 Instance-facing rules for humans and agents operating this idea.
 
+Open this folder in an agent runtime. State the human's goal. Follow
+`.agents/skills/session/SKILL.md`. The CLI is the ledger; the agent is
+the sparring partner.
+
 ## CLI
 
 Use the `mycelium` CLI for scaffolded operations:
@@ -34,7 +38,7 @@ See `program/reference/implementation-systems.md` for the packet → pstack/pote
 
 ## Skills
 
-New scaffolds emit `.agents/skills/{mycelium-cli,spark,wake,portfolio,thinking,council,second-opinion}/SKILL.md` when `program/packs/council/` is present. `tier`, `index`, `state`, and `wake` do not retrofit skills into older instances. Existing instances: re-scaffold or copy the pack **manually**.
+New scaffolds emit `.agents/skills/{session,mycelium-cli,spark,thinking,simmer,wake,clarify,handoff,portfolio,council,second-opinion}/SKILL.md` when `program/packs/council/` is present. `tier`, `index`, `state`, and `wake` do not retrofit skills into older instances. Existing instances: re-scaffold or copy the pack **manually**.
 
 Runtimes that cannot fan out skip rungs 2–3; sparring still applies.
 

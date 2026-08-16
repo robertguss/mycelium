@@ -45,8 +45,8 @@ for this rung.
 
 ## Do not
 
-- Run `mycelium council`, `mycelium ladder`, `mycelium replicate`, or
-  `mycelium handoff` (those verbs do not exist).
+- Run `mycelium council`, `mycelium ladder`, or `mycelium replicate`
+  (those verbs do not exist).
 - Create an RCL for a second-opinion commissioning.
 - Treat CI / an Actions job as the done bar.
 - Flip `handed-off`.
