@@ -1,6 +1,10 @@
 # Fixed Governance Spine
 
-Every program follows this spine:
+This is the **long program**. A spark sitting does not walk it. Use it
+when the idea has earned a spec and a plan — usually after raising the
+tier.
+
+Every long program follows this spine:
 
 ```text
 mycelium new idea (working title)

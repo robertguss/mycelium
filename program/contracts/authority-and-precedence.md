@@ -3,8 +3,8 @@
 Unless a project defines a stricter model, apply this order:
 
 1. Accepted `DEC-###` records that explicitly supersede earlier authority.
-2. Locked decisions in `docs/00-program-blueprint.md`.
-3. Normative evidence and workflow rules in `docs/01-research-charter.md`.
+2. Locked decisions in the Program Blueprint (when this idea uses one).
+3. Normative rules in the Research Charter (when this idea uses one).
 4. The commissioning prompt for the current stage.
 5. The current accepted revised definitive specification.
 6. Accepted focused research reports as evidence and recommendations.

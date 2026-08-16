@@ -4,7 +4,7 @@ Thin pointer. Obey
 [`program/contracts/replication-reconciliation.md`](../../../contracts/replication-reconciliation.md)
 **verbatim**. Do not fork that file. Do not copy the v1 body here.
 
-Authority: `framework/phases/PHASE-04-implementation-brief.md` §6.4, §6.6, §6.7.
+Authority: this file and `program/contracts/replication-reconciliation.md`.
 Pack path for `RCL-###` files: `reviews/reconciliations/`.
 
 ## Required front matter

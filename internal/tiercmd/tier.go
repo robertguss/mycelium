@@ -61,7 +61,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			"tier requires a tier name",
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"usage: mycelium tier <tier> [--dir PATH] where <tier> is focused, standard, or high-assurance",
 		)
 	}
@@ -82,7 +82,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot resolve cwd: %v", err),
 				"command-flags",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"retry from a readable working directory",
 			)
 		}
@@ -139,7 +139,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("cannot inspect emit dirs: %v", err),
 			"tier",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"fix filesystem permissions under the instance root",
 		)
 	}
@@ -225,7 +225,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				buildErr.Error(),
 				"tier",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"restore missing schemas or fix emit paths and retry",
 			)
 		}

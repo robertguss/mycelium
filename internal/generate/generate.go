@@ -60,7 +60,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			"new requires a type key",
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			`usage: mycelium new <type> "<Title>" [--dir PATH]`,
 		)
 	}
@@ -68,7 +68,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			"title is required",
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			`usage: mycelium new <type> "<Title>" [--dir PATH]`,
 		)
 	}
@@ -86,7 +86,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("cannot slugify title: %v", err),
 			"slugify",
-			"framework/decisions/DEC-014-phase-01-slugify-latin-fold.md",
+			"program/contracts/naming.md",
 			"pass a title with at least one letter or digit",
 		)
 	}
@@ -98,7 +98,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot resolve cwd: %v", err),
 				"command-flags",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"retry from a readable working directory",
 			)
 		}

@@ -83,7 +83,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			"idea name is required",
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			`run mycelium new idea "<name>" [--offline]`,
 		)
 	}
@@ -105,7 +105,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			"--offline and --publish are contradictory",
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"use --offline for hermetic local scaffold, or --publish without --offline",
 		)
 	}
@@ -115,7 +115,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("cannot slugify idea name: %v", err),
 			"slugify",
-			"framework/decisions/DEC-014-phase-01-slugify-latin-fold.md",
+			"program/contracts/naming.md",
 			"pass a name with at least one letter or digit",
 		)
 	}
@@ -127,7 +127,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot resolve cwd: %v", err),
 				"command-flags",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"retry from a readable working directory",
 			)
 		}
@@ -148,7 +148,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("parent directory does not exist: %s", parent),
 			"scaffold-dir",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"create the parent directory, then retry",
 		)
 	}
@@ -178,7 +178,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("refuse: target already exists: %s", displayPath),
 				"scaffold-dir",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"choose a new name, pass --dir to a free path, or remove the existing path",
 			)
 		}
@@ -197,7 +197,7 @@ func Run(opts Options, deps Deps) int {
 				return teach.Write(deps.Stderr,
 					fmt.Sprintf("cannot inspect target: %v", perr),
 					"scaffold-dir",
-					"framework/phases/PHASE-01-implementation-brief.md",
+					"program/contracts/conformance.md",
 					"fix filesystem permissions and retry",
 				)
 			}
@@ -205,7 +205,7 @@ func Run(opts Options, deps Deps) int {
 				return teach.Write(deps.Stderr,
 					fmt.Sprintf("refuse: target already exists: %s", displayPath),
 					"scaffold-dir",
-					"framework/phases/PHASE-01-implementation-brief.md",
+					"program/contracts/conformance.md",
 					"choose a new name, pass --dir to a free path, or remove the existing path",
 				)
 			}
@@ -213,7 +213,7 @@ func Run(opts Options, deps Deps) int {
 				return teach.Write(deps.Stderr,
 					fmt.Sprintf("cannot prune leftover .mycelium: %v", err),
 					"scaffold-dir",
-					"framework/phases/PHASE-01-implementation-brief.md",
+					"program/contracts/conformance.md",
 					"remove the .mycelium directory manually, then retry",
 				)
 			}
@@ -224,7 +224,7 @@ func Run(opts Options, deps Deps) int {
 			return teach.Write(deps.Stderr,
 				fmt.Sprintf("cannot create target directory: %v", err),
 				"scaffold-dir",
-				"framework/phases/PHASE-01-implementation-brief.md",
+				"program/contracts/conformance.md",
 				"fix filesystem permissions and retry",
 			)
 		}
@@ -233,7 +233,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("cannot stat target: %v", err),
 			"scaffold-dir",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"fix filesystem permissions and retry",
 		)
 	}
@@ -264,7 +264,7 @@ func Run(opts Options, deps Deps) int {
 		return teach.Write(deps.Stderr,
 			fmt.Sprintf("scaffold plan failed: %v", err),
 			"scaffold",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"report this as a CLI bug; embed program/ may be incomplete",
 		)
 	}
@@ -410,11 +410,15 @@ func buildFiles(ideaName, ideaSlug, tier, date, cliVersion string) ([]op.Staged,
 		{"program/skeleton/CONTEXT.md", "CONTEXT.md"},
 		{"program/skeleton/AGENTS.md", "AGENTS.md"},
 		{"program/skeleton/gitignore", ".gitignore"},
+		{"program/skills/session/SKILL.md", ".agents/skills/session/SKILL.md"},
 		{"program/skills/mycelium-cli/SKILL.md", ".agents/skills/mycelium-cli/SKILL.md"},
 		{"program/skills/spark/SKILL.md", ".agents/skills/spark/SKILL.md"},
-		{"program/skills/wake/SKILL.md", ".agents/skills/wake/SKILL.md"},
-		{"program/skills/portfolio/SKILL.md", ".agents/skills/portfolio/SKILL.md"},
 		{"program/skills/thinking/SKILL.md", ".agents/skills/thinking/SKILL.md"},
+		{"program/skills/simmer/SKILL.md", ".agents/skills/simmer/SKILL.md"},
+		{"program/skills/wake/SKILL.md", ".agents/skills/wake/SKILL.md"},
+		{"program/skills/clarify/SKILL.md", ".agents/skills/clarify/SKILL.md"},
+		{"program/skills/handoff/SKILL.md", ".agents/skills/handoff/SKILL.md"},
+		{"program/skills/portfolio/SKILL.md", ".agents/skills/portfolio/SKILL.md"},
 	} {
 		b, err := myceliumembed.Program.ReadFile(name.embed)
 		if err != nil {

@@ -1,7 +1,7 @@
 # Council pack — Model report (RPT)
 
 Pack contract for `RPT-###` files under `reviews/reports/`.
-Authority: `framework/phases/PHASE-04-implementation-brief.md` §6.2, §6.3, §6.7.
+Authority: this file and `program/contracts/replication-reconciliation.md`.
 Structure only (DEC-005). Check does not grade prose.
 
 ## Required front matter

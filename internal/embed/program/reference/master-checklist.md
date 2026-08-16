@@ -1,7 +1,8 @@
 # Master Completion Checklist
 
-A Research Program Architect should not declare the workflow configured until
-all applicable items are true.
+This checklist is for the **long program**. A spark sitting does not need
+it. A Research Program Architect should not declare the long workflow
+configured until all applicable items are true.
 
 ## Governance
 

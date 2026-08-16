@@ -110,7 +110,7 @@ func Run(argv []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("unknown command %q", cmd),
 			"command-surface",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"run mycelium --help to list available commands",
 		)
 	}
@@ -126,7 +126,7 @@ func cmdVersion(args []string, stdout, stderr io.Writer) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("version accepts no arguments (got %q)", strings.Join(args, " ")),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"run mycelium version with no extra arguments",
 		)
 	}
@@ -139,7 +139,7 @@ func cmdNew(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			"new requires a subcommand: idea or a registered type",
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			`try: mycelium new idea "My idea" --offline`,
 		)
 	}
@@ -159,7 +159,7 @@ func cmdNewType(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			err.Error(),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			`usage: mycelium new <type> "<Title>" [--dir PATH]`,
 		)
 	}
@@ -168,7 +168,7 @@ func cmdNewType(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -196,7 +196,7 @@ func cmdNewIdea(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			err.Error(),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			`usage: mycelium new idea <name> [--dir PATH] [--offline] [--publish] [--tier focused|standard|high-assurance]`,
 		)
 	}
@@ -206,7 +206,7 @@ func cmdNewIdea(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -238,7 +238,7 @@ func cmdTier(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			err.Error(),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"usage: mycelium tier <tier> [--dir PATH] where <tier> is focused, standard, or high-assurance",
 		)
 	}
@@ -247,7 +247,7 @@ func cmdTier(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -274,7 +274,7 @@ func cmdPublish(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			err.Error(),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"usage: mycelium publish [--dir PATH]",
 		)
 	}
@@ -284,7 +284,7 @@ func cmdPublish(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -322,7 +322,7 @@ Examples:
 		return teach.Write(stderr,
 			err.Error(),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"usage: mycelium index [--dir PATH]",
 		)
 	}
@@ -331,7 +331,7 @@ Examples:
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -374,7 +374,7 @@ Examples:
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -416,7 +416,7 @@ Examples:
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -456,7 +456,7 @@ Examples:
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -486,7 +486,7 @@ func cmdSupersede(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			err.Error(),
 			"command-flags",
-			"framework/phases/PHASE-05-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"usage: mycelium supersede <OLD-ID> --by <NEW-ID> [--dir PATH]",
 		)
 	}
@@ -495,7 +495,7 @@ func cmdSupersede(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-05-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -523,7 +523,7 @@ func cmdHandoff(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			"handoff accepts only --dir PATH",
 			"command-flags",
-			"framework/phases/PHASE-06-implementation-brief.md",
+			"program/contracts/handoff-packet.md",
 			"mycelium handoff [--dir PATH]",
 		)
 	}
@@ -532,7 +532,7 @@ func cmdHandoff(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-06-implementation-brief.md",
+			"program/contracts/handoff-packet.md",
 			"retry from a readable working directory",
 		)
 	}
@@ -558,7 +558,7 @@ func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			err.Error(),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"usage: mycelium check [--dir PATH] [--abort-journal]",
 		)
 	}
@@ -567,7 +567,7 @@ func cmdCheck(args []string, stdout, stderr io.Writer, deps Deps) int {
 		return teach.Write(stderr,
 			fmt.Sprintf("cannot resolve cwd: %v", err),
 			"command-flags",
-			"framework/phases/PHASE-01-implementation-brief.md",
+			"program/contracts/conformance.md",
 			"retry from a readable working directory",
 		)
 	}

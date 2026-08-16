@@ -1,5 +1,10 @@
 # Program Completion and Implementation Handoff
 
+This file is the done bar for the **long program**. A spark that never
+opens a blueprint is complete when the human says it is (or when it is
+archived). Reach implementation through `mycelium handoff` from
+`clarified`.
+
 ## Program completion criteria
 
 The research program is complete only when:
